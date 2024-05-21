@@ -39,3 +39,26 @@ export API_KEY=YOUR-API-KEY
 ./query_api_with_key.sh $API_KEY
 ./generate_traffic_with_key.sh $API_KEY
 ./query_api_with_key.sh $API_KEY
+- create venv
+sudo apt-get install -y virtualenv
+python3 -m venv venv
+source venv/bin/activate
+- install pub/sub client library
+pip install --upgrade google-cloud-pubsub
+git clone https://github.com/googleapis/python-pubsub.git
+cd python-pubsub/samples/snippets
+- create topic
+echo $GOOGLE_CLOUD_PROJECT
+cat publisher.py
+python publisher.py -h
+python publisher.py $GOOGLE_CLOUD_PROJECT create MyTopic
+- create subscription
+python subscriber.py $GOOGLE_CLOUD_PROJECT create MyTopic MySub
+python subscriber.py $GOOGLE_CLOUD_PROJECT list-in-project
+- publish message
+gcloud pubsub topics publish MyTopic --message "Hello"
+- view messages
+python subscriber.py $GOOGLE_CLOUD_PROJECT receive MySub
+
+# you can't secure the cloud, right?
+- 
