@@ -15,3 +15,27 @@ INSERT INTO entries (guestName, content) values ("second guest", "Me too!");
 ```
 - retrieve data
 SELECT * FROM entries;
+
+## there is api for that
+- get sample code
+gsutil cp gs://spls/gsp164/endpoints-quickstart.zip .
+unzip endpoints-quickstart.zip
+cd endppoints-quickstart
+- deploy the endpoint config
+cd scripts
+./deploy_api.sh
+- deploying the api backend
+./deploy_app.sh ../app/app_template.yaml us-east4
+- sending request to the api
+./query_api.sh
+./query_api.sh JFK
+- tracking api activity
+./generate_traffic.sh
+- add q quota to the api
+./deploy_api.sh ../openapi_with_ratelimit.yaml
+./deploy_app.sh ../app/app_template.yaml us-east4
+Navmenu > APIs & Services > Credentials > Create credentials > API key
+export API_KEY=YOUR-API-KEY
+./query_api_with_key.sh $API_KEY
+./generate_traffic_with_key.sh $API_KEY
+./query_api_with_key.sh $API_KEY
