@@ -60,5 +60,16 @@ gcloud pubsub topics publish MyTopic --message "Hello"
 - view messages
 python subscriber.py $GOOGLE_CLOUD_PROJECT receive MySub
 
-# you can't secure the cloud, right?
-- 
+## you can't secure the cloud, right?
+### user authentication: Identity Aware Proxy [IAM]
+- deploy the application and protect it with IAM
+gsutil cp gs://spls/gsp499/user-authentication-with-iap.zip .
+unzip user-authentication-with-iap.zip
+cd user-authentication-with-iap
+cd 1-HelloWorld
+sed -i 's/python37/python39/g' app.yaml
+gcloud app deploy
+gcloud app browse
+- access user identity information
+
+- use cryptographic verification
