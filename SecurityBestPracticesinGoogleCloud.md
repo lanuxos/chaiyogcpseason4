@@ -59,6 +59,40 @@ python3 query.py
 - test your security settings
 
 ## application security: techniques and best practices
-- 
+### Identify Application Vulnerabilities with Security Command Center
+- launch a virtual machine and deploy a vulnerable application
+
+- scan the application with web security scanner
+
+- correct the vulneratbility and scan again
+
+### Securing Compute Engine Applications with BeyondCorp Enterprise
+- create a compute engine template
+
+- create a managed instance group
+
+- create a google cloud self-managed SSL certificate resource
+
+- create a load balancer
+
+- restart you VMs
+
+- set up IAP
+
+- test IAP
+
+### Configuring and Using Credentials with Secret Manager
+- enable the secret manager api
+
+- create a secret
+
+- use a secret
+
+- create and use a new secret version
+
+- create a new secret version
+
+- reinstate and verify a previous secret version
+
 ## securing google kubernetes engine: techniques and best practices
 - 
