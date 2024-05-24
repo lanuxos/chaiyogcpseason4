@@ -46,9 +46,18 @@ sed -i -e "s/YOUR_SERVICE_ACCOUNT/bigquery-qwiklab@$(gcloud config get-value pro
 sudo pip3 install pyarrow==5.0.0
 sudo pip3 install db-dtypes
 python3 query.py
-- 
 ## securing cloud data: techniques and best practices
-- 
+### Creating a BigQuery Authorized View
+- create the source dataset
+
+- create the analyst dataset
+
+- secure the analyst dataset
+
+- secure the source dataset
+
+- test your security settings
+
 ## application security: techniques and best practices
 - 
 ## securing google kubernetes engine: techniques and best practices
