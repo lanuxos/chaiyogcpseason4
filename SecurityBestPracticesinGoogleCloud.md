@@ -64,7 +64,7 @@ python3 query.py
 
 - scan the application with web security scanner
 
-- correct the vulneratbility and scan again
+- correct the vulnerability and scan again
 
 ### Securing Compute Engine Applications with BeyondCorp Enterprise
 - create a compute engine template
