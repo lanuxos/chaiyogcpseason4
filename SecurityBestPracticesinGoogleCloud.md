@@ -49,15 +49,56 @@ python3 query.py
 ## securing cloud data: techniques and best practices
 ### Creating a BigQuery Authorized View
 - create the source dataset
-
+bq load --autodetect $DEVSHELL_PROJ:source_data.events gs://cloud-training/gcpsec/labs/bq-authviews-source.csv
+update source_data.events set email='<2nd qwiklabs user>' where email='rhonda.burns@example-dev.com'
 - create the analyst dataset
-
+SELECT
+  date,
+  type,
+  company,
+  call_duration,
+  call_type,
+  call_num_users,
+  call_os,
+  rating,
+  comment,
+  session_id,
+  dialin_duration,
+  ticket_number,
+  ticket_driver
+FROM
+  `[your_project_id].source_data.events`
+SELECT
+  *
+FROM
+  `[your_project_id].analyst_views.no_user_info`
+LIMIT
+  1000
+SELECT
+  *
+FROM
+  `[your_project_id].source_data.events`
+WHERE
+  email = SESSION_USER()
 - secure the analyst dataset
 
 - secure the source dataset
 
 - test your security settings
-
+SELECT
+  *
+FROM
+  `analyst_views.no_user_info`
+WHERE
+  type='register'
+SELECT
+  *
+FROM
+  `analyst_views.row_filter_session_user`
+SELECT
+  *
+FROM
+  `source_data.events`
 ## application security: techniques and best practices
 ### Identify Application Vulnerabilities with Security Command Center
 - launch a virtual machine and deploy a vulnerable application
