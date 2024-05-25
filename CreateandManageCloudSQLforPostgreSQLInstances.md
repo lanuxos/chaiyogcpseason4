@@ -235,8 +235,130 @@ Databases > SQL > postgres-gmemegen > Overview > Connect to this instance > Open
 \c gmemegen_db
 select * from meme;
 
-## securing a cloud sql for postgresql instance
+## securing a cloud sql for postgresql instance [GSP920]
+### create a cloud sql for postgresql instance with cmek enabled
+- Create a per-product, per-project service account for Cloud SQL
+export PROJECT_ID=$(gcloud config list --format 'value(core.project)')
+gcloud beta services identity create --service=sqladmin.googleapis.com --project=$PROJECT_ID
+- Create a Cloud Key Management Service keyring and key
+export KMS_KEYRING_ID=cloud-sql-keyring
+export ZONE=$(gcloud compute instances list --filter="NAME=bastion-vm" --format=json | jq -r .[].zone | awk -F "/zones/" '{print $NF}')
+export REGION=${ZONE::-2}
+gcloud kms keyrings create $KMS_KEYRING_ID --location=$REGION
+- create the Cloud KMS key
+export KMS_KEY_ID=cloud-sql-key
+gcloud kms keys create $KMS_KEY_ID --location=$REGION --keyring=$KMS_KEYRING_ID --purpose=encryption
+- bind the key to the service account
+export PROJECT_NUMBER=$(gcloud projects describe ${PROJECT_ID} --format 'value(projectNumber)')
+gcloud kms keys add-iam-policy-binding $KMS_KEY_ID --location=$REGION --keyring=$KMS_KEYRING_ID --member=serviceAccount:service-${PROJECT_NUMBER}@gcp-sa-cloud-sql.iam.gserviceaccount.com --role=roles/cloudkms.cryptoKeyEncrypterDecrypter
+- Create a Cloud SQL instance with CMEK enabled
+- find the external IP address of the bastion-vm VM instance
+export AUTHORIZED_IP=$(gcloud compute instances describe bastion-vm --zone=$ZONE --format 'value(networkInterfaces[0].accessConfigs.natIP)')
+echo Authorized IP: $AUTHORIZED_IP
+34.168.202.26
+- find the external IP address of the Cloud Shell
+export CLOUD_SHELL_IP=$(curl ifconfig.me)
+echo Cloud Shell IP: $CLOUD_SHELL_IP
+35.198.215.15
+- create your Cloud SQL for PostgreSQL instance
+export KEY_NAME=$(gcloud kms keys describe $KMS_KEY_ID --keyring=$KMS_KEYRING_ID --location=$REGION --format 'value(name)')
 
+export CLOUDSQL_INSTANCE=postgres-orders
+gcloud sql instances create $CLOUDSQL_INSTANCE --project=$PROJECT_ID --authorized-networks=${AUTHORIZED_IP}/32,$CLOUD_SHELL_IP/32 --disk-encryption-key=$KEY_NAME --database-version=POSTGRES_13 --cpu=1 --memory=3840MB --region=$REGION --root-password=supersecret!
+- 
+
+### enable and configure pgaudit on a cloud sql for postgresql database
+- add the pgAudit database flags
+gcloud sql instances patch $CLOUDSQL_INSTANCE --database-flags cloudsql.enable_pgaudit=on,pgaudit.log=all
+Databases > SQL > postgres-orders > Overview > Restart > Restart
+Connect to this instance > Open Cloud Shell
+CREATE DATABASE orders;
+\c orders;
+CREATE EXTENSION pgaudit;
+ALTER DATABASE orders SET pgaudit.log = 'read,write';
+- Enable Audit Logging in Cloud Console
+IAM & Admin > Audit Logs > Filter > Cloud SQL > Info Panel > Save
+- Populate a database on Cloud SQL for PostgreSQL
+export SOURCE_BUCKET=gs://cloud-training/gsp920
+gsutil -m cp ${SOURCE_BUCKET}/create_orders_db.sql .
+gsutil -m cp ${SOURCE_BUCKET}/DDL/distribution_centers_data.csv .
+gsutil -m cp ${SOURCE_BUCKET}/DDL/inventory_items_data.csv .
+gsutil -m cp ${SOURCE_BUCKET}/DDL/order_items_data.csv .
+gsutil -m cp ${SOURCE_BUCKET}/DDL/products_data.csv .
+gsutil -m cp ${SOURCE_BUCKET}/DDL/users_data.csv .
+- create and populate the database
+export CLOUDSQL_INSTANCE=postgres-orders
+export POSTGRESQL_IP=$(gcloud sql instances describe $CLOUDSQL_INSTANCE --format="value(ipAddresses[0].ipAddress)")
+export PGPASSWORD=supersecret!
+psql "sslmode=disable user=postgres hostaddr=${POSTGRESQL_IP}" -c "\i create_orders_db.sql"
+exit
+CREATE ROLE auditor WITH NOLOGIN;
+ALTER DATABASE orders SET pgaudit.role = 'auditor';
+GRANT SELECT ON order_items TO auditor;
+SELECT
+    users.id  AS users_id,
+    users.first_name  AS users_first_name,
+    users.last_name  AS users_last_name,
+    COUNT(DISTINCT order_items.order_id ) AS order_items_order_count,
+    COALESCE(SUM(order_items.sale_price ), 0) AS order_items_total_revenue
+FROM order_items
+LEFT JOIN users ON order_items.user_id = users.id
+GROUP BY 1, 2, 3
+ORDER BY 4 DESC
+LIMIT 500;
+SELECT
+    products.id  AS products_id,
+    products.name  AS products_name,
+    products.sku  AS products_sku,
+    products.cost  AS products_cost,
+    products.retail_price  AS products_retail_price,
+    products.distribution_center_id  AS products_distribution_center_id,
+    COUNT(DISTINCT order_items.order_id ) AS order_items_order_count,
+    COALESCE(SUM(order_items.sale_price ), 0) AS order_items_total_revenue
+FROM order_items
+LEFT JOIN inventory_items ON order_items.inventory_item_id = inventory_items.id
+LEFT JOIN products ON inventory_items.product_id = products.id
+GROUP BY 1, 2, 3, 4, 5, 6
+ORDER BY 7 DESC
+LIMIT 500;
+SELECT
+    order_items.order_id AS order_id,
+    distribution_centers.id  AS distribution_centers_id,
+    distribution_centers.name  AS distribution_centers_name,
+    distribution_centers.latitude  AS distribution_centers_latitude,
+    distribution_centers.longitude  AS distribution_centers_longitude
+FROM order_items
+LEFT JOIN inventory_items ON order_items.inventory_item_id = inventory_items.id
+LEFT JOIN products ON inventory_items.product_id = products.id
+LEFT JOIN distribution_centers ON products.distribution_center_id = distribution_centers.id
+GROUP BY 1, 2, 3, 4, 5
+ORDER BY 2
+LIMIT 500;
+\q
+- View pgAudit logs
+Observablity > Logging > Logs Explorer > Query > Logs Explorer > Run query
+resource.type="cloudsql_database"
+logName="projects/(GCP Project)/logs/cloudaudit.googleapis.com%2Fdata_access"
+protoPayload.request.@type="type.googleapis.com/google.cloud.sql.audit.v1.PgAuditEntry"
+### configure cloud sql iam database authentication
+- Test database access using a Cloud IAM user before Cloud SQL IAM authentication is configured
+export USERNAME=$(gcloud config list --format="value(core.account)")
+export CLOUDSQL_INSTANCE=postgres-orders
+export POSTGRESQL_IP=$(gcloud sql instances describe $CLOUDSQL_INSTANCE --format="value(ipAddresses[0].ipAddress)")
+export PGPASSWORD=$(gcloud auth print-access-token)
+psql --host=$POSTGRESQL_IP $USERNAME --dbname=orders
+- Create a Cloud SQL IAM user
+Databases > SQL > Overview > Configuration > Database flags > pgAudit.log > cloudsql.enable_pgaudit > Users > Users > Add user account > Cloud IAM > Principal > Add > Overview > cloudsql.iam_authentication
+- Grant the Cloud IAM user access to a Cloud SQL database table
+gcloud sql connect postgres-orders --user=postgres --quiet
+\c orders
+GRANT ALL PRIVILEGES ON TABLE order_items TO "[IAM Username]";
+\q
+- Test database access using a Cloud IAM user after Cloud SQL IAM authentication is configured
+export PGPASSWORD=$(gcloud auth print-access-token)
+psql --host=$POSTGRESQL_IP $USERNAME --dbname=orders
+SELECT COUNT(*) FROM order_items;
+SELECT COUNT(*) FROM users;
 ## configure replication and enable point-in-time-recovery for cloud sql for postgresql
 
 ## create and manage cloud sql for postgresql instances: challenge lab
