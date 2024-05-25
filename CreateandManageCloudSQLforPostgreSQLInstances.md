@@ -359,6 +359,11 @@ export PGPASSWORD=$(gcloud auth print-access-token)
 psql --host=$POSTGRESQL_IP $USERNAME --dbname=orders
 SELECT COUNT(*) FROM order_items;
 SELECT COUNT(*) FROM users;
-## configure replication and enable point-in-time-recovery for cloud sql for postgresql
-
+## configure replication and enable point-in-time-recovery for cloud sql for postgresql [GSP922]
+### enable backups on the cloud sql for postgresql instance
+- 
+### enable and run point-in-time recovery
+- 
+### confirm database has been restored to the correct point-int-time
+- 
 ## create and manage cloud sql for postgresql instances: challenge lab
