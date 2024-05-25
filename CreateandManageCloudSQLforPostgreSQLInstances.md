@@ -177,16 +177,63 @@ Database Migration > Migration jobs > vm-to-cloudsql  > Promote > Promote
 
 ## Connect an App to a Cloud SQL for PostgreSQL Instance [GSP919]
 ### initialize apis and create a cloud iam service account
-- 
+- Enable the API
+gcloud services enable artifactregistry.googleapis.com
+- Create a Service Account for Cloud SQL
+export PROJECT_ID=$(gcloud config list --format 'value(core.project)')
+export CLOUDSQL_SERVICE_ACCOUNT=cloudsql-service-account
+
+gcloud iam service-accounts create $CLOUDSQL_SERVICE_ACCOUNT --project=$PROJECT_ID
+
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$CLOUDSQL_SERVICE_ACCOUNT@$PROJECT_ID.iam.gserviceaccount.com" --role="roles/cloudsql.admin" 
+
+- export keys to a local file
+gcloud iam service-accounts keys create $CLOUDSQL_SERVICE_ACCOUNT.json --iam-account=$CLOUDSQL_SERVICE_ACCOUNT@$PROJECT_ID.iam.gserviceaccount.com --project=$PROJECT_ID
 
 ### deploy a lightweight GKE application
-- 
+- Create a Kubernetes cluster
+ZONE=us-central1-c
+gcloud container clusters create postgres-cluster --zone=$ZONE --num-nodes=2
+- Create Kubernetes secrets for database access
+kubectl create secret generic cloudsql-instance-credentials --from-file=credentials.json=$CLOUDSQL_SERVICE_ACCOUNT.json
+    
+kubectl create secret generic cloudsql-db-credentials --from-literal=username=postgres --from-literal=password=supersecret! --from-literal=dbname=gmemegen_db
+- Download and build the GKE application container
+gsutil -m cp -r gs://spls/gsp919/gmemegen .
+cd gmemegen
+- Create environment variables for the region, Project ID and Artifact Registry repository
+export REGION=us-central1
+export PROJECT_ID=$(gcloud config list --format 'value(core.project)')
+export REPO=gmemegen
+- Configure Docker authentication for the Artifact Registry
+gcloud auth configure-docker ${REGION}-docker.pkg.dev
+- Create the Artifact Registry repository
+gcloud artifacts repositories create $REPO --repository-format=docker --location=$REGION
+- Build a local Docker image
+docker build -t ${REGION}-docker.pkg.dev/${PROJECT_ID}/gmemegen/gmemegen-app:v1 .
+- Push the image to the Artifact Registry
+docker push ${REGION}-docker.pkg.dev/${PROJECT_ID}/gmemegen/gmemegen-app:v1
+- Configure and deploy the GKE application
+kubectl create -f gmemegen_deployment.yaml
+kubectl get pods
 
-### connect GKE application to an exteral load balancer
+### connect GKE application to an external load balancer
+- Create a load balancer to make your GKE application accessible from the web
+kubectl expose deployment gmemegen --type "LoadBalancer" --port 80 --target-port 8080
+- Test the application to generate some data
+kubectl describe service gmemegen
+- create a clickable link to the external IP address of the load balancer
+export LOAD_BALANCER_IP=$(kubectl get svc gmemegen -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' -n default)
+echo gMemegen Load Balancer Ingress IP: http://$LOAD_BALANCER_IP
+- view the application’s activity
+POD_NAME=$(kubectl get pods --output=json | jq -r ".items[0].metadata.name")
+kubectl logs $POD_NAME gmemegen | grep "INFO"
 - 
-
 ### verify full read/write capabilities of application to database
-- 
+- Connect to the database and query an application table
+Databases > SQL > postgres-gmemegen > Overview > Connect to this instance > Open Cloud Shell
+\c gmemegen_db
+select * from meme;
 
 ## securing a cloud sql for postgresql instance
 
