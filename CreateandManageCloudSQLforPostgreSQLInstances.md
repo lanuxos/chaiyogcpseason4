@@ -401,7 +401,7 @@ Migration user password : DMS_1s_cool!
 - 
 ### promote a cloud sql to be a stand-alone instance for reading and writing data
 - 
-### implement coud sql for postgresql iam database authentication
+### implement cloud sql for postgresql iam database authentication
 - 
 ### configure and test point-in-time recovery
 - 
