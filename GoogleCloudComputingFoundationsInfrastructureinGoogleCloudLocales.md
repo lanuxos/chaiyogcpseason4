@@ -61,7 +61,7 @@ gcloud pubsub topics publish MyTopic --message "Hello"
 python subscriber.py $GOOGLE_CLOUD_PROJECT receive MySub
 
 ## you can't secure the cloud, right?
-### user authentication: Identity Aware Proxy [IAM]
+### user authentication: Identity Aware Proxy [IAM] [GSP499]
 - deploy the application and protect it with IAM
 gsutil cp gs://spls/gsp499/user-authentication-with-iap.zip .
 unzip user-authentication-with-iap.zip
@@ -70,6 +70,34 @@ cd 1-HelloWorld
 sed -i 's/python37/python39/g' app.yaml
 gcloud app deploy
 gcloud app browse
+Security > Identity-Aware Proxy
+ENABLE API
+GO TO IDENTITY-AWARE PROXY
+CONFIGURE CONSENT SCREEN
+Internal
+Create
+Save and Continue
+Scopes
+Save and Continue
+Summary
+Back to Dashboard
+- disable Flex API
+gcloud services disable appengineflex.googleapis.com
+App Engine app
+IAP
+Turn On
+- add account to IAP
+App Engine app
+Add Principal
+email address
+Cloud IAP > IAP-Secured Web App User
+Save
 - access user identity information
-
+cd ~/user-authentication-with-iap/2-HelloUser
+sed -i 's/python37/python39/g' app.yaml
+gcloud app deploy
+gcloud app browse
 - use cryptographic verification
+cd ~/user-authentication-with-iap/3-HelloVerifiedUser
+sed -i 's/python37/python39/g' app.yaml
+gcloud app deploy
