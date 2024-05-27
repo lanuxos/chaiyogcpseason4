@@ -361,9 +361,47 @@ SELECT COUNT(*) FROM order_items;
 SELECT COUNT(*) FROM users;
 ## configure replication and enable point-in-time-recovery for cloud sql for postgresql [GSP922]
 ### enable backups on the cloud sql for postgresql instance
-- 
+- display the instance details
+export CLOUD_SQL_INSTANCE=postgres-orders
+gcloud sql instances describe $CLOUD_SQL_INSTANCE
+- get current UTC time
+date +"%R"
+- enable scheduled back-ups [HH:MM use earlier step ouput]
+gcloud sql instances patch $CLOUD_SQL_INSTANCE     --backup-start-time=HH:MM
+- confirm your changes
+gcloud sql instances describe $CLOUD_SQL_INSTANCE --format 'value(settings.backupConfiguration)'
 ### enable and run point-in-time recovery
-- 
+- enable point-in-time-recovery
+  gcloud sql instances patch $CLOUD_SQL_INSTANCE enable-point-in-time-recovery retained-transaction-log-days=1
+- make change to database
+Databases > SQL > postgres-orders > Cloud Shell
+\c orders;
+select count(*) from distribution_centers;
+start new cloud shell and type to get timestamp for further step
+date --rfc-3339=seconds
+INSERT INTO distribution_centers VALUES(-80.1918,25.7617,'Miami FL',11);
+SELECT COUNT(*) FROM distribution_centers;
+\q
+- perform a point-in-time recovery
+export NEW_INSTANCE_NAME=postgres-orders-pitr
+gcloud sql instances clone $CLOUD_SQL_INSTANCE $NEW_INSTANCE_NAME --point-in-time 'TIMESTAMP'
 ### confirm database has been restored to the correct point-int-time
-- 
+- connect to instance
+gcloud sql connect postgres-orders --user=postgres --quiet
+- use database
+\c orders;
+- count
+SELECT COUNT(*) FROM distribution_centers;
 ## create and manage cloud sql for postgresql instances: challenge lab
+### migrate a stand-alone postgresql database to a cloud sql for postgresql instance
+Migration user name : Postgres Migration User
+Migration user password : DMS_1s_cool!
+- Prepare the stand-alone PostgreSQL database for migration
+- Migrate the stand-alone PostgreSQL database to a Cloud SQL for PostgreSQL instance
+- 
+### promote a cloud sql to be a stand-alone instance for reading and writing data
+- 
+### implement coud sql for postgresql iam database authentication
+- 
+### configure and test point-in-time recovery
+- 
