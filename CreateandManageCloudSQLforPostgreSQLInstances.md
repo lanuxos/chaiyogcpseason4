@@ -393,11 +393,203 @@ gcloud sql connect postgres-orders --user=postgres --quiet
 - count
 SELECT COUNT(*) FROM distribution_centers;
 ## create and manage cloud sql for postgresql instances: challenge lab [GSP355]
+- Challenge scenario
+Your employer has a stand-alone PostgreSQL database on a Compute Instance VM. You have been tasked with migrating the database to a Cloud SQL for PostgreSQL instance using Database Migration Services and VPC Peering. You are then required to configure and test Cloud SQL IAM Database Authentication on the migrated instance, and finally enable backups and point-in-time recovery so that the database is protected. You are required to confirm that point-in-time recovery works by using it to create a clone of the database to a particular timestamp.
 ### migrate a stand-alone postgresql database to a cloud sql for postgresql instance
 Migration user name : Postgres Migration User
 Migration user password : DMS_1s_cool!
+\l              # LIST DATABASES
+\c DATABASE;    # USE DATABASE
+\dt;            # SHOW ALL TABLES
+distribution_centers
+inventory_items
+order_items
+products
+users
 - Prepare the stand-alone PostgreSQL database for migration
+    1. Enable the Google Cloud APIs required for Database Migration Services
+      - Database Migration API
+      - Service Networking API
+    2. Upgrade the target databases on the postgres-vm virtual machine with the pglogical database extension
+    3. You must install and configure the pglogical database extension on the stand-alone PostgreSQL database on the postgres-vm Compute Instance VM. The pglogical database extension package that you must install is named postgresql-13-pglogical
+
+    sudo apt install postgresql-13-pglogical
+    
+    4. To complete the configuration of the pglogical database extension you must edit the PostgreSQL configuration file /etc/postgresql/13/main/postgresql.conf to enable the pglogical database extension and you must edit the /etc/postgresql/13/main/pg_hba.conf to allow access from all hosts
+
+    ```
+    #GSP918 - added configuration for pglogical database extension
+
+    wal_level = logical         # minimal, replica, or logical
+    max_worker_processes = 10   # one per database needed on provider node
+                                # one per node needed on subscriber node
+    max_replication_slots = 10  # one per node needed on provider node
+    max_wal_senders = 10        # one per node needed on provider node
+    shared_preload_libraries = 'pglogical'
+    max_wal_size = 1GB
+    min_wal_size = 80MB
+
+    listen_addresses = '*'         # what IP address(es) to listen on, '*' is all
+    ```
+    `host    all all 0.0.0.0/0   md5`
+
+    sudo su - postgres -c "gsutil cp gs://cloud-training/gsp918/pg_hba_append.conf ."
+    sudo su - postgres -c "gsutil cp gs://cloud-training/gsp918/postgresql_append.conf ."
+    sudo su - postgres -c "cat pg_hba_append.conf >> /etc/postgresql/13/main/pg_hba.conf"
+    sudo su - postgres -c "cat postgresql_append.conf >> /etc/postgresql/13/main/postgresql.conf"
+
+    sudo systemctl restart postgresql@13-main
+
+    5. Create a dedicated user for database migration on the stand-alone database
+    6. The new user that you create on the stand-alone PostgreSQL installation on the postgres-vm virtual machine must be configured using the following user name and password:
+        - Migration user name : Postgres Migration User
+        - Migration user password : DMS_1s_cool!
+    
+    CREATE USER 'Postgres Migration User' PASSWORD 'DMS_1s_cool!';
+
+    ALTER DATABASE orders OWNER TO 'Postgres Migration User';
+    ALTER DATABASE distribution_centers OWNER TO 'Postgres Migration User';
+    ALTER DATABASE inventory_items OWNER TO 'Postgres Migration User';
+    ALTER DATABASE order_items OWNER TO 'Postgres Migration User';
+    ALTER DATABASE products OWNER TO 'Postgres Migration User';
+    ALTER DATABASE users OWNER TO 'Postgres Migration User';
+
+    ALTER ROLE 'Postgres Migration User' WITH REPLICATION;
+    
+    7. Grant that user the required privileges and permissions for databases to be migrated
+
+    \c postgres;
+
+    GRANT USAGE ON SCHEMA pglogical TO 'Postgres Migration User';
+    GRANT ALL ON SCHEMA pglogical TO 'Postgres Migration User';
+
+    GRANT SELECT ON pglogical.tables TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.depend TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.local_node TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.local_sync_status TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.node TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.node_interface TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.queue TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set_seq TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set_table TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.sequence_state TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.subscription TO 'Postgres Migration User';
+
+    \c distribution_centers;
+
+    GRANT USAGE ON SCHEMA pglogical TO 'Postgres Migration User';
+    GRANT ALL ON SCHEMA pglogical TO 'Postgres Migration User';
+
+    GRANT SELECT ON pglogical.tables TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.depend TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.local_node TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.local_sync_status TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.node TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.node_interface TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.queue TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set_seq TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set_table TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.sequence_state TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.subscription TO 'Postgres Migration User';
+
+    \c inventory_items;
+
+    GRANT USAGE ON SCHEMA pglogical TO 'Postgres Migration User';
+    GRANT ALL ON SCHEMA pglogical TO 'Postgres Migration User';
+
+    GRANT SELECT ON pglogical.tables TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.depend TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.local_node TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.local_sync_status TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.node TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.node_interface TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.queue TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set_seq TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set_table TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.sequence_state TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.subscription TO 'Postgres Migration User';
+
+    \c order_items;
+
+    GRANT USAGE ON SCHEMA pglogical TO 'Postgres Migration User';
+    GRANT ALL ON SCHEMA pglogical TO 'Postgres Migration User';
+
+    GRANT SELECT ON pglogical.tables TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.depend TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.local_node TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.local_sync_status TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.node TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.node_interface TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.queue TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set_seq TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set_table TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.sequence_state TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.subscription TO 'Postgres Migration User';
+
+    \c products;
+
+    GRANT USAGE ON SCHEMA pglogical TO 'Postgres Migration User';
+    GRANT ALL ON SCHEMA pglogical TO 'Postgres Migration User';
+
+    GRANT SELECT ON pglogical.tables TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.depend TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.local_node TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.local_sync_status TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.node TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.node_interface TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.queue TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set_seq TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set_table TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.sequence_state TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.subscription TO 'Postgres Migration User';
+
+    \c users;
+
+    GRANT USAGE ON SCHEMA pglogical TO 'Postgres Migration User';
+    GRANT ALL ON SCHEMA pglogical TO 'Postgres Migration User';
+
+    GRANT SELECT ON pglogical.tables TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.depend TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.local_node TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.local_sync_status TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.node TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.node_interface TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.queue TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set_seq TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.replication_set_table TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.sequence_state TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.subscription TO 'Postgres Migration User';
+
+    8. You must make sure that all of the tables in the orders database have a primary key set before you start the migration.
+
+    GRANT USAGE ON SCHEMA public TO 'Postgres Migration User';
+    GRANT ALL ON SCHEMA public TO 'Postgres Migration User';
+
+    GRANT SELECT ON public.distribution_centers TO 'Postgres Migration User';
+    GRANT SELECT ON public.inventory_items TO 'Postgres Migration User';
+    GRANT SELECT ON public.order_items TO 'Postgres Migration User';
+    GRANT SELECT ON public.products TO 'Postgres Migration User';
+    GRANT SELECT ON public.users TO 'Postgres Migration User';
+
+    \c distribution_centers;
+    CREATE EXTENSION distribution_centers;
+    \c inventory_items;
+    CREATE EXTENSION inventory_items;
+    \c order_items;
+    CREATE EXTENSION order_items;
+    \c products;
+    CREATE EXTENSION products;
+    \c users;
+    CREATE EXTENSION users;
+
 - Migrate the stand-alone PostgreSQL database to a Cloud SQL for PostgreSQL instance
+
 - 
 ### promote a cloud sql to be a stand-alone instance for reading and writing data
 - 
