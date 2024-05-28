@@ -396,16 +396,10 @@ SELECT COUNT(*) FROM distribution_centers;
 - Challenge scenario
 Your employer has a stand-alone PostgreSQL database on a Compute Instance VM. You have been tasked with migrating the database to a Cloud SQL for PostgreSQL instance using Database Migration Services and VPC Peering. You are then required to configure and test Cloud SQL IAM Database Authentication on the migrated instance, and finally enable backups and point-in-time recovery so that the database is protected. You are required to confirm that point-in-time recovery works by using it to create a clone of the database to a particular timestamp.
 ### migrate a stand-alone postgresql database to a cloud sql for postgresql instance
-Migration user name : Postgres Migration User
-Migration user password : DMS_1s_cool!
 \l              # LIST DATABASES
 \c DATABASE;    # USE DATABASE
 \dt;            # SHOW ALL TABLES
-distribution_centers
-inventory_items
-order_items
-products
-users
+
 - Prepare the stand-alone PostgreSQL database for migration
     1. Enable the Google Cloud APIs required for Database Migration Services
       - Database Migration API
@@ -418,8 +412,6 @@ users
     4. To complete the configuration of the pglogical database extension you must edit the PostgreSQL configuration file /etc/postgresql/13/main/postgresql.conf to enable the pglogical database extension and you must edit the /etc/postgresql/13/main/pg_hba.conf to allow access from all hosts
 
     ```
-    #GSP918 - added configuration for pglogical database extension
-
     wal_level = logical         # minimal, replica, or logical
     max_worker_processes = 10   # one per database needed on provider node
                                 # one per node needed on subscriber node
@@ -442,158 +434,179 @@ users
 
     5. Create a dedicated user for database migration on the stand-alone database
     6. The new user that you create on the stand-alone PostgreSQL installation on the postgres-vm virtual machine must be configured using the following user name and password:
-        - Migration user name : Postgres Migration User
+        - Migration user name : import_user
         - Migration user password : DMS_1s_cool!
+
+    sudo su - postgres
+    psql
     
-    CREATE USER 'Postgres Migration User' PASSWORD 'DMS_1s_cool!';
+    CREATE USER import_user PASSWORD 'DMS_1s_cool!';
 
-    ALTER DATABASE orders OWNER TO 'Postgres Migration User';
-    ALTER DATABASE distribution_centers OWNER TO 'Postgres Migration User';
-    ALTER DATABASE inventory_items OWNER TO 'Postgres Migration User';
-    ALTER DATABASE order_items OWNER TO 'Postgres Migration User';
-    ALTER DATABASE products OWNER TO 'Postgres Migration User';
-    ALTER DATABASE users OWNER TO 'Postgres Migration User';
+    ALTER DATABASE orders OWNER TO import_user;
 
-    ALTER ROLE 'Postgres Migration User' WITH REPLICATION;
+    ALTER DATABASE distribution_centers OWNER TO import_user;
+    ALTER DATABASE inventory_items OWNER TO import_user;
+    ALTER DATABASE order_items OWNER TO import_user;
+    ALTER DATABASE products OWNER TO import_user;
+    ALTER DATABASE users OWNER TO import_user;
+
+    ALTER ROLE import_user WITH REPLICATION;
     
     7. Grant that user the required privileges and permissions for databases to be migrated
 
+    CREATE EXTENSION pglogical;
+
     \c postgres;
 
-    GRANT USAGE ON SCHEMA pglogical TO 'Postgres Migration User';
-    GRANT ALL ON SCHEMA pglogical TO 'Postgres Migration User';
+    GRANT USAGE ON SCHEMA pglogical TO import_user;
+    GRANT ALL ON SCHEMA pglogical TO import_user;
 
-    GRANT SELECT ON pglogical.tables TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.depend TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.local_node TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.local_sync_status TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.node TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.node_interface TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.queue TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set_seq TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set_table TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.sequence_state TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.subscription TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.tables TO import_user;
+    GRANT SELECT ON pglogical.depend TO import_user;
+    GRANT SELECT ON pglogical.local_node TO import_user;
+    GRANT SELECT ON pglogical.local_sync_status TO import_user;
+    GRANT SELECT ON pglogical.node TO import_user;
+    GRANT SELECT ON pglogical.node_interface TO import_user;
+    GRANT SELECT ON pglogical.queue TO import_user;
+    GRANT SELECT ON pglogical.replication_set TO import_user;
+    GRANT SELECT ON pglogical.replication_set_seq TO import_user;
+    GRANT SELECT ON pglogical.replication_set_table TO import_user;
+    GRANT SELECT ON pglogical.sequence_state TO import_user;
+    GRANT SELECT ON pglogical.subscription TO import_user;
 
-    \c distribution_centers;
+    \c orders;
 
-    GRANT USAGE ON SCHEMA pglogical TO 'Postgres Migration User';
-    GRANT ALL ON SCHEMA pglogical TO 'Postgres Migration User';
+    GRANT USAGE ON SCHEMA pglogical TO import_user;
+    GRANT ALL ON SCHEMA pglogical TO import_user;
 
-    GRANT SELECT ON pglogical.tables TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.depend TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.local_node TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.local_sync_status TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.node TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.node_interface TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.queue TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set_seq TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set_table TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.sequence_state TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.subscription TO 'Postgres Migration User';
+    GRANT SELECT ON pglogical.tables TO import_user;
+    GRANT SELECT ON pglogical.depend TO import_user;
+    GRANT SELECT ON pglogical.local_node TO import_user;
+    GRANT SELECT ON pglogical.local_sync_status TO import_user;
+    GRANT SELECT ON pglogical.node TO import_user;
+    GRANT SELECT ON pglogical.node_interface TO import_user;
+    GRANT SELECT ON pglogical.queue TO import_user;
+    GRANT SELECT ON pglogical.replication_set TO import_user;
+    GRANT SELECT ON pglogical.replication_set_seq TO import_user;
+    GRANT SELECT ON pglogical.replication_set_table TO import_user;
+    GRANT SELECT ON pglogical.sequence_state TO import_user;
+    GRANT SELECT ON pglogical.subscription TO import_user;
 
-    \c inventory_items;
 
-    GRANT USAGE ON SCHEMA pglogical TO 'Postgres Migration User';
-    GRANT ALL ON SCHEMA pglogical TO 'Postgres Migration User';
+    GRANT USAGE ON SCHEMA public TO import_user;
+    GRANT ALL ON SCHEMA public TO import_user;
 
-    GRANT SELECT ON pglogical.tables TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.depend TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.local_node TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.local_sync_status TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.node TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.node_interface TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.queue TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set_seq TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set_table TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.sequence_state TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.subscription TO 'Postgres Migration User';
+    GRANT SELECT ON public.distribution_centers TO import_user;
+    GRANT SELECT ON public.inventory_items TO import_user;
+    GRANT SELECT ON public.order_items TO import_user;
+    GRANT SELECT ON public.products TO import_user;
+    GRANT SELECT ON public.users TO import_user;
 
-    \c order_items;
+    GRANT USAGE ON SCHEMA public TO import_user;
+    GRANT ALL ON SCHEMA public TO import_user;
 
-    GRANT USAGE ON SCHEMA pglogical TO 'Postgres Migration User';
-    GRANT ALL ON SCHEMA pglogical TO 'Postgres Migration User';
+    GRANT SELECT ON public.meme TO import_user;
 
-    GRANT SELECT ON pglogical.tables TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.depend TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.local_node TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.local_sync_status TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.node TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.node_interface TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.queue TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set_seq TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set_table TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.sequence_state TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.subscription TO 'Postgres Migration User';
-
-    \c products;
-
-    GRANT USAGE ON SCHEMA pglogical TO 'Postgres Migration User';
-    GRANT ALL ON SCHEMA pglogical TO 'Postgres Migration User';
-
-    GRANT SELECT ON pglogical.tables TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.depend TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.local_node TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.local_sync_status TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.node TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.node_interface TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.queue TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set_seq TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set_table TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.sequence_state TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.subscription TO 'Postgres Migration User';
-
-    \c users;
-
-    GRANT USAGE ON SCHEMA pglogical TO 'Postgres Migration User';
-    GRANT ALL ON SCHEMA pglogical TO 'Postgres Migration User';
-
-    GRANT SELECT ON pglogical.tables TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.depend TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.local_node TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.local_sync_status TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.node TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.node_interface TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.queue TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set_seq TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.replication_set_table TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.sequence_state TO 'Postgres Migration User';
-    GRANT SELECT ON pglogical.subscription TO 'Postgres Migration User';
+    ALTER TABLE public.distribution_centers OWNER TO import_user;
+    ALTER TABLE public.inventory_items OWNER TO import_user;
+    ALTER TABLE public.order_items OWNER TO import_user;
+    ALTER TABLE public.products OWNER TO import_user;
+    ALTER TABLE public.users OWNER TO import_user;
+    \dt
 
     8. You must make sure that all of the tables in the orders database have a primary key set before you start the migration.
 
-    GRANT USAGE ON SCHEMA public TO 'Postgres Migration User';
-    GRANT ALL ON SCHEMA public TO 'Postgres Migration User';
-
-    GRANT SELECT ON public.distribution_centers TO 'Postgres Migration User';
-    GRANT SELECT ON public.inventory_items TO 'Postgres Migration User';
-    GRANT SELECT ON public.order_items TO 'Postgres Migration User';
-    GRANT SELECT ON public.products TO 'Postgres Migration User';
-    GRANT SELECT ON public.users TO 'Postgres Migration User';
-
-    \c distribution_centers;
-    CREATE EXTENSION distribution_centers;
-    \c inventory_items;
-    CREATE EXTENSION inventory_items;
-    \c order_items;
-    CREATE EXTENSION order_items;
-    \c products;
-    CREATE EXTENSION products;
-    \c users;
-    CREATE EXTENSION users;
+    alter table inventory_items add primary key (id);
 
 - Migrate the stand-alone PostgreSQL database to a Cloud SQL for PostgreSQL instance
+    1. create a new database migration service connection profile
+    Compute Engine > VM instances
+    postgresql-vm
+    Internal IP 10.138.0.2 | 34.82.200.141
+    Database Migration > Connection profiles
+    Create Profile.
+    Database engine = PostgreSQL
+    profile name = postgres-vm
+    Hostname or IP address
+    Port = 5432
+    Username = migration_admin
+    Password = DMS_1s_cool!
+    Region select (region)
+    Create
+    2. configure connection profile using the internal ip address
 
-- 
+    3. create a new continuous database migration service job
+    Database Migration > Migration jobs
+    Create Migration Job.
+    Migration job name, enter vm-to-cloudsql.
+    Source database engine, select PostgreSQL.
+    Destination region, select (region).
+    Destination database engine, select Cloud SQL for PostgreSQL.Migration job type, select Continuous.
+    Leave the defaults for the other settings.
+    Save & Continue
+
+    Source connection profile, select postgres-vm
+    Save & Continue
+
+    Destination Instance ID, enter Migrated Cloud SQL for PostgreSQL Instance ID
+    Password, enter supersecret!
+    Choose a Cloud SQL edition, select Enterprise edition
+    Database version, select Cloud SQL for PostgreSQL 13
+    Choose region and zone section, select Single zone and select (zone) as primary zone
+    Instance connectivity, select Private IP and Public IP
+    Select Use an automatically allocated IP range
+    Leave the defaults for the other settings
+    Allocate & Connect
+    Machine shapes. check 2 vCPU, 8 GB
+    Storage type, select SSD
+    Storage capacity, select 10 GB
+    Create & Continue
+    Connectivity method, select VPC peering
+    For VPC, select default
+    Configure & Continue
+    supersecret!
 ### promote a cloud sql to be a stand-alone instance for reading and writing data
-- 
+Database Migration > Migration jobs
+vm-to-cloudsql to see the details page
+Promote
+Promote
+When the promotion is complete, the status of the job will update to Completed
+Databases > SQL
 ### implement cloud sql for postgresql iam database authentication
-- 
+1. Patch the Migrated Cloud SQL for PostgreSQL Instance ID Cloud SQL instance to allow connections from the public ip-address of the postgres-vm virtual machine.
+In the Migrated Cloud SQL for PostgreSQL Instance ID Cloud SQL instance, go to connections > Networking.
+Under the Public IP, click on ADD A NETWORK. For the network, use the external IP of the postgres-vm virtual machine.
+2. In the Migrated Cloud SQL for PostgreSQL Instance ID Cloud SQL instance, create a Cloud SQL IAM user using the lab student ID, Qwiklabs user account name, as the principal account name.
+Click Users > Add user account, then select Cloud IAM.
+3. Grant SELECT permission to the Cloud IAM user for the orders table.
+In the Migrated Cloud SQL for PostgreSQL Instance ID Cloud SQL instance, go to Overview. Under Connect to this instance, click on Open Cloud Shell.
+For the password enter supersecret!. Then connect to the orders database using \c orders; command.
+Again for the password enter supersecret!.
+Use the following command to grant SELECT permission. Replace the Table_Name and Qwiklabs_User_Account_Name variables with the correct values
+
+GRANT SELECT ON inventory_items TO "student-04-498995f4f8b9@qwiklabs.net";
+
 ### configure and test point-in-time recovery
-- 
+1. enable backups on the cloud sql for postgresql instance
+In the Migrated Cloud SQL for PostgreSQL Instance ID Cloud SQL instance, go to Overview. Click on edit > Data Protection.
+Enable point-in-time recovery and set the number of retained transaction log days to Point-in-time recovery retention days
+
+export CLOUD_SQL_INSTANCE=postgres82-t8ws0
+
+gcloud sql instances patch $CLOUD_SQL_INSTANCE --enable-point-in-time-recovery --retained-transaction-log-days=3
+
+2. note timestamp for the point-in-time you wish to restore
+date -u --rfc-3339=ns | sed -r 's/ /T/; s/\.([0-9]{3}).*/\.\1Z/'
+
+3. make change to database after this timestamp
+Connect to this instance, click on Open Cloud Shell
+add a row of data to the orders.distribution_centers
+INSERT INTO orders.distribution_centers VALUES(-80.1918,25.7617,'Miami FL',11);
+SELECT COUNT(*) FROM distribution_centers;
+4. use point-in-time recovery to create a clone that replicates the instance state at your chosen timestamp
+
+export NEW_INSTANCE_NAME=postgres-orders-pitr
+
+gcloud sql instances clone $CLOUD_SQL_INSTANCE $NEW_INSTANCE_NAME --point-in-time $TIME_STAMP
+
+gcloud sql instances patch $CLOUDSQL_INSTANCE --retained-transaction-log-days=3
