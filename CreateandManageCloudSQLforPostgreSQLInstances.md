@@ -392,7 +392,7 @@ gcloud sql connect postgres-orders --user=postgres --quiet
 \c orders;
 - count
 SELECT COUNT(*) FROM distribution_centers;
-## create and manage cloud sql for postgresql instances: challenge lab
+## create and manage cloud sql for postgresql instances: challenge lab [GSP355]
 ### migrate a stand-alone postgresql database to a cloud sql for postgresql instance
 Migration user name : Postgres Migration User
 Migration user password : DMS_1s_cool!
