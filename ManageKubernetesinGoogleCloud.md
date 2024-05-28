@@ -213,7 +213,7 @@ gsutil -m acl set -R -a public-read gs://$PROJECT
 - Re-run prometheus pointing to the new configuration file by running the command below
 ./prometheus --config.file=config.yaml --export.label.project-id=$PROJECT --export.label.location=$ZONE
 ## Manage Kubernetes in Google Cloud: Challenge Lab
-### create a GKE cluter
+### create a GKE cluster
 - 
 ### enable managed prometheus on the GKE cluster
 - 
