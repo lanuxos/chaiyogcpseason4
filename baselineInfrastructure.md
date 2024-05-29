@@ -94,6 +94,28 @@ DATA=$(printf 'Hello World!'|base64) && gcloud functions call helloWorld --data 
 - view logs
 gcloud functions logs read helloWorld
 ## pub/sub [console]
+- create topic
+Pub/Sub > Topics
+Create a topic
+Topic ID
+CREATE
+- add a subscription
+Topics
+three dots
+Create subscription
+Add subscription to topic
+Subscription ID = MySub
+Pull
+Create
+- publish a message to the topic
+Pub/Sub
+Topics
+MyTopics
+Messages
+Publish Message
+Message = Hello World
+Publish
+- view the message
 gcloud pubsub subscriptions pull --auto-ack MySub
 ## pub/sub [command line]
 - topic
@@ -104,9 +126,9 @@ gcloud pubsub topics list
 gcloud pubsub topics delete Test1
 gcloud pubsub topics delete Test2
 - subscription
-gcloud  pubsub subscriptions create --topic myTopic mySubscription
-gcloud  pubsub subscriptions create --topic myTopic Test1
-gcloud  pubsub subscriptions create --topic myTopic Test2
+gcloud pubsub subscriptions create --topic myTopic mySubscription
+gcloud pubsub subscriptions create --topic myTopic Test1
+gcloud pubsub subscriptions create --topic myTopic Test2
 gcloud pubsub topics list-subscriptions myTopic
 gcloud pubsub subscriptions delete Test1
 gcloud pubsub subscriptions delete Test2
