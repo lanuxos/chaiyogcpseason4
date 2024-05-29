@@ -99,6 +99,7 @@ SELECT
   *
 FROM
   `source_data.events`
+  
 ## application security: techniques and best practices
 ### Identify Application Vulnerabilities with Security Command Center
 - launch a virtual machine and deploy a vulnerable application

@@ -41,6 +41,7 @@ gcloud beta alloydb clusters list
 ### deleting a cluster
 gcloud beta alloydb clusters delete gcloud-lab-cluster --force --region=us-east4 --project=qwiklabs-gcp-04-b396c7c152f1
 gcloud beta alloydb clusters list
+
 ## Migrating to AlloyDB from PostgreSQL Using Database Migration Service [GSP1084]
 student-00-eb12a87b4f91@qwiklabs.net
 jLGMXHFz7ySX
@@ -118,6 +119,7 @@ insert into regions values (5, 'Oceania');
 select region_id, region_name from regions;
 - check destination instance for changes
 select region_id, region_name from regions;
+
 ## Migrating to Alloy DB from PostgreSQL Using PostgreSQL Tools [GSP1085]
 ### verify data in source instance for migration
 - 
@@ -155,6 +157,7 @@ select count (*) as employees_row_count from employees;
 select count (*) as jobs_row_count from jobs;
 select count (*) as locations_row_count from locations;
 select count (*) as regions_row_count from regions;
+
 ## Administering an AlloyDB Database [GSP1086]
 ### examine a database flag
 - 
@@ -180,6 +183,7 @@ gcloud beta alloydb backups list
 ### examine monitoring in the alloyDB console
 pgbench -h $ALLOYDB -U postgres -i -s 50 -F 90 -n postgres
 pgbench -h $ALLOYDB -U postgres -c 50 -j 2 -P 30 -T 180 postgres
+
 ## Accelerating Analytical Queries using the AlloyDB Columnar Engine [GSP1087]
 ### create baseline dataset for testing the columnar engine
 pgbench -h $ALLOYDB -U postgres -i -s 500 -F 90 -n postgres
@@ -200,19 +204,78 @@ EXPLAIN (ANALYZE,COSTS,SETTINGS,BUFFERS,TIMING,SUMMARY,WAL,VERBOSE)
 SELECT count(*) FROM pgbench_accounts WHERE bid < 189  OR  abalance > 100;
 ### testing the columnar engine
 - 
-student-04-0156ba00959b@qwiklabs.net
-BcUGfY9NdxoG
-qwiklabs-gcp-01-db536d0b0f43
-us-east4
-us-east4-b
-10.31.0.2:5432
-## Create and Manage AlloyDB Instances: Challenge Lab
+
+## Create and Manage AlloyDB Instances: Challenge Lab [GSP395]
+Challenge scenario
+In your role as the corporate Database Administrator, you have been tasked with standing up a new AlloyDB for PostgreSQL database for your company's HR Operations group. You have been provided a list specifications for this database related to tables to create and data to load.
 ### create a cluster and instance
-- 
+- using cloud console
+Databases  > AlloyDB for PostgreSQL > Clusters > Create cluster > Highly Available > Continue
+Cluster ID : lab-cluster
+Password : Change3Me
+Network : peering-network
+Continue
+machine type : 2 vCPU, 16GB
+Create Cluster
+- using cli
+gcloud beta alloydb clusters create lab-cluster --password=Change3Me --network=peering-network --region=REGION --project=PROJECT_ID --cluster=SAMPLE_CLUSTER_ID
+- cluster private IP
+
 ### create tables in your instance
-- 
+Compute Engine
+VM instances
+alloydb-client
+SSH
+- set environment
+export ALLOYDB=ALLOYDB_ADDRESS
+echo $ALLOYDB  > alloydbip.txt 
+- launch psql
+psql -h $ALLOYDB -U postgres
+- create table
+CREATE TABLE regions(
+    region_id bigint NOT NULL,
+    region_name varchar(25)
+);
+ALTER TABLE ADD PRIMARY KEY (region_id);
+CREATE TABLE countries(
+    countries_id char(2) NOT NULL,
+    country_name varchar(40),
+    region_id bigint
+);
+ALTER TABLE ADD PRIMARY KEY (countries_id);
+CREATE TABLE departments(
+    department_id smallint NOT NULL,
+    department_name varchar(30),
+    manager_id integer,
+    location_id smallint
+);
+ALTER TABLE ADD PRIMARY KEY (department_id);
 ### load simple datasets into tables
-- 
+INSERT INTO regions
+VALUES
+(1, 'Europe'),
+(2, 'Americas'),
+(3, 'Asia'),
+(4, 'Middle East and Africa');
+INSERT INTO countries
+VALUES
+('IT', 'Italy', 1),
+('JP', 'Japan', 3),
+('US', 'United States of America', 2),
+('CA', 'Canada', 2),
+('CN', 'China', 3),
+('IN', 'India', 3),
+('AU', 'Australia', 3),
+('ZW', 'Zimbabwe', 4),
+('SG', 'Singapore', 3);
+INSERT INTO departments
+VALUES
+(10, 'Administration', 200, 1700),
+(20, 'Marketing', 201, 1800),
+(30, 'Purchasing', 114, 1700),
+(40, 'Human Resources', 203, 2400),
+(50, 'Shipping', 121, 1500),
+(60, 'IT', 103, 1400);
 ### create a read pool instance
 - 
 ### create a backup

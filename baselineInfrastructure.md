@@ -1,7 +1,7 @@
 # Chaiyo GCP Season 4
 # Baseline: Infrastructure
 
-# CLI [command line interface]
+## CLI [command line interface]
 [gcloud cli overview guide](https://cloud.google.com/sdk/gcloud)
 - list all the active account name
 gcloud auth list
@@ -32,10 +32,10 @@ gsutil acl ch -d AllUsers gs://BUCKET_NAME/FILE
 - delete object
 gsutil rm gs://BUCKET_NAME/FILE
 
-# Cloud IAM [google cloud identity and access management]
+## Cloud IAM [google cloud identity and access management]
 - three basic roles [viewer, editor, owner]
 
-# cloud monitoring
+## cloud monitoring
 - setting up region and zone
 gcloud config set compute/zone "ZONE"
 export ZONE=$(gcloud config get compute/zone)
@@ -50,8 +50,8 @@ sudo bash add-google-cloud-ops-agent-repo.sh --also-install
 - run logging agent install script command on VM
 sudo systemctl status google-cloud-ops-agent"*"
 sudo apt-get update
-# cloud function [console]
-# cloud function [command line]
+## cloud function [console]
+## cloud function [command line]
 - create function
 gcloud config set compute/region us-central1
 mkdir gcf_hello_world
@@ -93,9 +93,9 @@ gcloud functions describe helloWorld
 DATA=$(printf 'Hello World!'|base64) && gcloud functions call helloWorld --data '{"data":"'$DATA'"}'
 - view logs
 gcloud functions logs read helloWorld
-# pub/sub [console]
+## pub/sub [console]
 gcloud pubsub subscriptions pull --auto-ack MySub
-# pub/sub [command line]
+## pub/sub [command line]
 - topic
 gcloud pubsub topics create myTopic
 gcloud pubsub topics create Test1
@@ -122,7 +122,7 @@ gcloud pubsub topics publish myTopic --message "World"
 gcloud pubsub topics publish myTopic --message "Google"
 gcloud pubsub topics publish myTopic --message "Cloud"
 gcloud pubsub subscriptions pull mySubscription --auto-ack --limit=3
-# pub/sub [python]
+## pub/sub [python]
 - install virtualenv
 sudo apt-get install -y virtualenv
 python3 -m venv venv
@@ -144,7 +144,7 @@ python subscriber.py -h
 gcloud pubsub topics publish MyTopic --message "Hello"
 - view message
 python subscriber.py $GOOGLE_CLOUD_PROJECT receive MySub
-# pub/sub lite
+## pub/sub lite
 - send message
 ```
 from google.cloud.pubsublite.cloudpubsub import PublisherClient

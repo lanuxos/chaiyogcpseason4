@@ -265,8 +265,6 @@ export KEY_NAME=$(gcloud kms keys describe $KMS_KEY_ID --keyring=$KMS_KEYRING_ID
 
 export CLOUDSQL_INSTANCE=postgres-orders
 gcloud sql instances create $CLOUDSQL_INSTANCE --project=$PROJECT_ID --authorized-networks=${AUTHORIZED_IP}/32,$CLOUD_SHELL_IP/32 --disk-encryption-key=$KEY_NAME --database-version=POSTGRES_13 --cpu=1 --memory=3840MB --region=$REGION --root-password=supersecret!
-- 
-
 ### enable and configure pgaudit on a cloud sql for postgresql database
 - add the pgAudit database flags
 gcloud sql instances patch $CLOUDSQL_INSTANCE --database-flags cloudsql.enable_pgaudit=on,pgaudit.log=all
@@ -359,6 +357,7 @@ export PGPASSWORD=$(gcloud auth print-access-token)
 psql --host=$POSTGRESQL_IP $USERNAME --dbname=orders
 SELECT COUNT(*) FROM order_items;
 SELECT COUNT(*) FROM users;
+
 ## configure replication and enable point-in-time-recovery for cloud sql for postgresql [GSP922]
 ### enable backups on the cloud sql for postgresql instance
 - display the instance details
@@ -392,6 +391,7 @@ gcloud sql connect postgres-orders --user=postgres --quiet
 \c orders;
 - count
 SELECT COUNT(*) FROM distribution_centers;
+
 ## create and manage cloud sql for postgresql instances: challenge lab [GSP355]
 - Challenge scenario
 Your employer has a stand-alone PostgreSQL database on a Compute Instance VM. You have been tasked with migrating the database to a Cloud SQL for PostgreSQL instance using Database Migration Services and VPC Peering. You are then required to configure and test Cloud SQL IAM Database Authentication on the migrated instance, and finally enable backups and point-in-time recovery so that the database is protected. You are required to confirm that point-in-time recovery works by using it to create a clone of the database to a particular timestamp.
@@ -405,9 +405,15 @@ Your employer has a stand-alone PostgreSQL database on a Compute Instance VM. Yo
       - Database Migration API
       - Service Networking API
     2. Upgrade the target databases on the postgres-vm virtual machine with the pglogical database extension
+    
+    sudo apt install postgresql-13-pglogical
+
     3. You must install and configure the pglogical database extension on the stand-alone PostgreSQL database on the postgres-vm Compute Instance VM. The pglogical database extension package that you must install is named postgresql-13-pglogical
 
-    sudo apt install postgresql-13-pglogical
+    \c orders;
+    CREATE EXTENSION pglogical;
+    \c postgres;
+    CREATE EXTENSION pglogical;
     
     4. To complete the configuration of the pglogical database extension you must edit the PostgreSQL configuration file /etc/postgresql/13/main/postgresql.conf to enable the pglogical database extension and you must edit the /etc/postgresql/13/main/pg_hba.conf to allow access from all hosts
 
@@ -454,8 +460,6 @@ Your employer has a stand-alone PostgreSQL database on a Compute Instance VM. Yo
     
     7. Grant that user the required privileges and permissions for databases to be migrated
 
-    CREATE EXTENSION pglogical;
-
     \c postgres;
 
     GRANT USAGE ON SCHEMA pglogical TO import_user;
@@ -492,7 +496,6 @@ Your employer has a stand-alone PostgreSQL database on a Compute Instance VM. Yo
     GRANT SELECT ON pglogical.sequence_state TO import_user;
     GRANT SELECT ON pglogical.subscription TO import_user;
 
-
     GRANT USAGE ON SCHEMA public TO import_user;
     GRANT ALL ON SCHEMA public TO import_user;
 
@@ -505,16 +508,17 @@ Your employer has a stand-alone PostgreSQL database on a Compute Instance VM. Yo
     GRANT USAGE ON SCHEMA public TO import_user;
     GRANT ALL ON SCHEMA public TO import_user;
 
-    GRANT SELECT ON public.meme TO import_user;
-
     ALTER TABLE public.distribution_centers OWNER TO import_user;
     ALTER TABLE public.inventory_items OWNER TO import_user;
     ALTER TABLE public.order_items OWNER TO import_user;
     ALTER TABLE public.products OWNER TO import_user;
     ALTER TABLE public.users OWNER TO import_user;
+
     \dt
 
     8. You must make sure that all of the tables in the orders database have a primary key set before you start the migration.
+
+    \d TABLE;   display fields on table
 
     alter table inventory_items add primary key (id);
 
@@ -522,9 +526,9 @@ Your employer has a stand-alone PostgreSQL database on a Compute Instance VM. Yo
     1. create a new database migration service connection profile
     Compute Engine > VM instances
     postgresql-vm
-    Internal IP 10.138.0.2 | 34.82.200.141
+    Internal IP
     Database Migration > Connection profiles
-    Create Profile.
+    Create Profile
     Database engine = PostgreSQL
     profile name = postgres-vm
     Hostname or IP address
@@ -537,23 +541,24 @@ Your employer has a stand-alone PostgreSQL database on a Compute Instance VM. Yo
 
     3. create a new continuous database migration service job
     Database Migration > Migration jobs
-    Create Migration Job.
-    Migration job name, enter vm-to-cloudsql.
-    Source database engine, select PostgreSQL.
-    Destination region, select (region).
-    Destination database engine, select Cloud SQL for PostgreSQL.Migration job type, select Continuous.
-    Leave the defaults for the other settings.
+    Create Migration Job
+    Migration job name = vm-to-cloudsql
+    Source database engine = PostgreSQL
+    Destination region = (region)
+    Destination database engine = Cloud SQL for PostgreSQL 
+    Migration job type = Continuous
+    Leave the defaults for the other settings
     Save & Continue
 
-    Source connection profile, select postgres-vm
+    Source connection profile = postgres-vm
     Save & Continue
 
-    Destination Instance ID, enter Migrated Cloud SQL for PostgreSQL Instance ID
-    Password, enter supersecret!
-    Choose a Cloud SQL edition, select Enterprise edition
-    Database version, select Cloud SQL for PostgreSQL 13
-    Choose region and zone section, select Single zone and select (zone) as primary zone
-    Instance connectivity, select Private IP and Public IP
+    Destination Instance ID = Migrated Cloud SQL for PostgreSQL Instance ID
+    Password = supersecret!
+    Choose a Cloud SQL edition = Enterprise edition
+    Database version = Cloud SQL for PostgreSQL 13
+    Choose region and zone section = Single zone and select (zone) as primary zone
+    Instance connectivity = Private IP and Public IP
     Select Use an automatically allocated IP range
     Leave the defaults for the other settings
     Allocate & Connect
@@ -561,13 +566,14 @@ Your employer has a stand-alone PostgreSQL database on a Compute Instance VM. Yo
     Storage type, select SSD
     Storage capacity, select 10 GB
     Create & Continue
+
     Connectivity method, select VPC peering
     For VPC, select default
     Configure & Continue
-    supersecret!
+    
 ### promote a cloud sql to be a stand-alone instance for reading and writing data
 Database Migration > Migration jobs
-vm-to-cloudsql to see the details page
+vm-to-cloudsql
 Promote
 Promote
 When the promotion is complete, the status of the job will update to Completed
@@ -592,20 +598,22 @@ In the Migrated Cloud SQL for PostgreSQL Instance ID Cloud SQL instance, go to O
 Enable point-in-time recovery and set the number of retained transaction log days to Point-in-time recovery retention days
 
 export CLOUD_SQL_INSTANCE=postgres82-t8ws0
+export NEW_INSTANCE_NAME=postgres-orders-pitr
 
 gcloud sql instances patch $CLOUD_SQL_INSTANCE --enable-point-in-time-recovery --retained-transaction-log-days=3
 
-2. note timestamp for the point-in-time you wish to restore
+1. note timestamp for the point-in-time you wish to restore
 date -u --rfc-3339=ns | sed -r 's/ /T/; s/\.([0-9]{3}).*/\.\1Z/'
+export TIME_STAMP=DATE_TIME
 
-3. make change to database after this timestamp
+1. make change to database after this timestamp
 Connect to this instance, click on Open Cloud Shell
 add a row of data to the orders.distribution_centers
+
 INSERT INTO orders.distribution_centers VALUES(-80.1918,25.7617,'Miami FL',11);
 SELECT COUNT(*) FROM distribution_centers;
-4. use point-in-time recovery to create a clone that replicates the instance state at your chosen timestamp
 
-export NEW_INSTANCE_NAME=postgres-orders-pitr
+1. use point-in-time recovery to create a clone that replicates the instance state at your chosen timestamp
 
 gcloud sql instances clone $CLOUD_SQL_INSTANCE $NEW_INSTANCE_NAME --point-in-time $TIME_STAMP
 
