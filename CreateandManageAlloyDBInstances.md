@@ -208,8 +208,14 @@ SELECT count(*) FROM pgbench_accounts WHERE bid < 189  OR  abalance > 100;
 ## Create and Manage AlloyDB Instances: Challenge Lab [GSP395]
 Challenge scenario
 In your role as the corporate Database Administrator, you have been tasked with standing up a new AlloyDB for PostgreSQL database for your company's HR Operations group. You have been provided a list specifications for this database related to tables to create and data to load.
+student-04-65a538539173@qwiklabs.net
+CzSMcabqr4K4
+qwiklabs-gcp-02-d22e09d45a28
+us-west1
+us-west1-c
+
 ### create a cluster and instance
-- using cloud console
+- using cloud console to create a cluster and instance
 Databases  > AlloyDB for PostgreSQL > Clusters > Create cluster > Highly Available > Continue
 Cluster ID : lab-cluster
 Password : Change3Me
@@ -217,39 +223,43 @@ Network : peering-network
 Continue
 machine type : 2 vCPU, 16GB
 Create Cluster
-- using cli
-gcloud beta alloydb clusters create lab-cluster --password=Change3Me --network=peering-network --region=REGION --project=PROJECT_ID --cluster=SAMPLE_CLUSTER_ID
+IP 10.55.0.5
+- using cli to create a cluster
+gcloud beta alloydb clusters create lab-cluster --password=Change3Me --network=peering-network --region=us-west1 --project=qwiklabs-gcp-02-d22e09d45a28
+- using cli to create an instance
+gcloud beta alloydb instances create lab-instance --instance-type=PRIMARY --cpu-count=2 --region=us-west1 --cluster=lab-cluster --project=qwiklabs-gcp-02-d22e09d45a28
 - cluster private IP
-
+When you are on the Overview page for the new cluster you created, please make note of the Private IP address in the instances section. Copy the Private IP address to a text file so that you can paste the value in a later step
 ### create tables in your instance
 Compute Engine
 VM instances
 alloydb-client
 SSH
 - set environment
-export ALLOYDB=ALLOYDB_ADDRESS
+export ALLOYDB=10.55.0.5
 echo $ALLOYDB  > alloydbip.txt 
 - launch psql
 psql -h $ALLOYDB -U postgres
+Change3Me
 - create table
 CREATE TABLE regions(
     region_id bigint NOT NULL,
     region_name varchar(25)
 );
-ALTER TABLE ADD PRIMARY KEY (region_id);
+ALTER TABLE regions ADD PRIMARY KEY (region_id);
 CREATE TABLE countries(
     countries_id char(2) NOT NULL,
     country_name varchar(40),
     region_id bigint
 );
-ALTER TABLE ADD PRIMARY KEY (countries_id);
+ALTER TABLE countries ADD PRIMARY KEY (countries_id);
 CREATE TABLE departments(
     department_id smallint NOT NULL,
     department_name varchar(30),
     manager_id integer,
     location_id smallint
 );
-ALTER TABLE ADD PRIMARY KEY (department_id);
+ALTER TABLE departments ADD PRIMARY KEY (department_id);
 ### load simple datasets into tables
 INSERT INTO regions
 VALUES
@@ -277,6 +287,21 @@ VALUES
 (50, 'Shipping', 121, 1500),
 (60, 'IT', 103, 1400);
 ### create a read pool instance
-- 
+- using cloud console
+Database > AlloyDB
+Add Read Pool | Add Read Pool Instance [in your cluster section of the Overview]
+Read pool instance ID = lab-instance-rp1
+Node count = 2
+2 vCPU, 16 GB as your machine type.
+Create Read Pool
+- using cli
+gcloud beta alloydb instance create lab-instance-rp1 --instance-type=READ_POOL --cpu-count=2 --read-pool-node-count=2 --region=us-west1 --cluster=lab-cluster --project=qwiklabs-gcp-02-d22e09d45a28
 ### create a backup
-- 
+- using cloud console
+Databases 
+AlloyDB for PostgreSQL 
+Backups = lab-backup
+- using cli
+gcloud beta alloydb backups create lab-backup --cluster=lab-cluster --region=us-west1 --project=qwiklabs-gcp-02-d22e09d45a28
+- checking backup list
+gcloud beta alloydb backups list
