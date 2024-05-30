@@ -212,16 +212,121 @@ gsutil cp config.yaml gs://$PROJECT
 gsutil -m acl set -R -a public-read gs://$PROJECT
 - Re-run prometheus pointing to the new configuration file by running the command below
 ./prometheus --config.file=config.yaml --export.label.project-id=$PROJECT --export.label.location=$ZONE
-## Manage Kubernetes in Google Cloud: Challenge Lab
+## Manage Kubernetes in Google Cloud: Challenge Lab [GSP510]
+Challenge scenario
+You were onboarded at Cymbal Shops just a few months ago. You have spent a lot of time working with containers in Docker and Artifact Registry and have learned the ropes of managing new and existing deployments on GKE. You've had practice updating manifests as well as scaling, monitoring, and debugging applications running on your clusters.
 ### create a GKE cluster
-- 
+- create a GKE cluster
+gcloud beta container clusters create gmp-cluster --num-nodes=1 --zone Zone --enable-managed-prometheus
+gcloud container clusters get-credentials gmp-cluster --zone=Zone
+
+cluster name          
+zone                  
+release channel       Regular
+cluster version       1.27.8
+cluster autoscaler    Enabled
+number of nodes       3
+Minimum nodes         2
+maximum nodes         6
+
 ### enable managed prometheus on the GKE cluster
-- 
+- enable the prometheus managed collection on the GKE cluster
+
+- create namespace
+name space            
+kubectl create ns NAMESPACE
+- download a sample prometheus app
+gsutil cp gs://spls/gsp510/prometheus-app.yaml .
+- update the <todo> section (line 35-38)
+containers.image:               nilebox/prometheus-example-app:latest
+containers.name:                prometheus-test
+ports.name:                     metrics
+- deploy the application onto the namespace on your GKE cluster
+kubectl -n NAMESPACE apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/prometheus-engine/v0.2.3/examples/example-app.yaml
+
+- download the pod-monitoring.yaml file
+gsutil cp gs://spls/gsp510/pod-monitoring.yaml .
+- Update the <todo> sections (lines 18-24) with the following configuration
+metadata.name:                  prometheus-test
+labels.app.kubernetes.io/name:  prometheus-test
+matchLabels.app:                prometheus-test
+endpoints.interval:             interval period
+- apply the pod monitoring resource onto the namespace on your GKE cluster
+kubectl -n NAMESPACE apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/prometheus-engine/v0.2.3/examples/pod-monitoring.yaml
 ### deploy an application onto the GKE cluster
-- 
+- download the demo deployment manifest file
+gsutil cp -r gs://spls/gsp510/hello-app/ .
+- create a deployment onto the NAMESPACE on your GKE cluster
+hello-app/manifests/helloweb-deployment.yaml
+
+kubectl -n NAMESPACE apply -f hello-app/manifests/helloweb-deployment.yaml
+- verify you have created the deployment
+kubectl get pods
 ### create a logs-based metric and alerting policy
-- 
+- create a logs-based metric
+Logging > Logs Explorer > Show query > Query 
+
+resource.type="k8s_container"
+severity=ERROR
+labels."k8s-pod/app": "recommendationservice"
+
+Metric Type:            Counter
+Log Metric Name:        pod-image-errors
+- create an alerting policy
+Monitoring > Alerting > Create Policy
+
+Click on Select a metric dropdown. Unselect the Active
+In filter by resource and metric name field, type Error_Rate
+Kubernetes Container > Logs-Based Metric
+logging/user/Error_Rate_SLI 
+Apply
+Rolling windows function
+Next
+0 as your Threshold value
+Next
+Disable Use notification channel.
+Provide an alert name Pod Error Alert 
+Next
+Create Policy
+
+Use the following details to configure your policy:
+Rolling Window:           10 min
+Rolling window function:  Count
+Time series aggregation:  Sum
+Condition type:           Threshold
+Alert trigger:            Any time series violates
+Threshold position:       Above threshold
+Threshold value:          0
+Use notification channel: Disable
+Alert policy name:        Pod Error Alert
+
 ### update and redeploy your app
-- 
+- Replace the <todo> in the image section in the helloweb-deployment.yaml
+us-docker.pkg.dev/google-samples/containers/gke/hello-app:1.0
+- delete the helloweb from your cluster
+console: 
+three dots > Actions > Delete > Delete
+
+cli: 
+gcloud container clusters delete helloweb
+- deploy the updated helloweb-deployment.yaml on the NAMESPACE
+kubectl -n NAMESPACE apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/prometheus-engine/v0.2.3/examples/pod-monitoring.yaml
 ### containerize your code and deploy it onto the cluster
+In the hello-app directory, update the main.go file to use Version: 2.0.0 on line 49.
+Use the hello-app/Dockerfile to create a Docker image with the v2 tag
+
+REGION-docker.pkg.dev/PROJECT-ID/REPOSITORY/IMAGE:TAG
+
+Push the newly built Docker image to your repository in Artifact Registry using the v2 tag.
+Set the image on your helloweb deployment to reflect the v2 image you pushed to Artifact Registry.
+Expose the helloweb deployment to a LoadBalancer service named service name on port 8080, and set the target port of the container to the one specified in the Dockerfile
 - 
+
+username
+
+password
+
+project id
+
+cluster name
+
