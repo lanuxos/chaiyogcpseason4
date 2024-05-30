@@ -318,6 +318,9 @@ Use the hello-app/Dockerfile to create a Docker image with the v2 tag
 REGION-docker.pkg.dev/PROJECT-ID/REPOSITORY/IMAGE:TAG
 
 Push the newly built Docker image to your repository in Artifact Registry using the v2 tag.
+
+docker push us-central1-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE:v2
+
 Set the image on your helloweb deployment to reflect the v2 image you pushed to Artifact Registry.
 Expose the helloweb deployment to a LoadBalancer service named service name on port 8080, and set the target port of the container to the one specified in the Dockerfile
 - 
