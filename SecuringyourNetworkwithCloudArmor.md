@@ -426,13 +426,235 @@ httpRequest
 
 ## HTTP Load Balancer with Cloud Armor [GSP215]
 ### configure http and health check firewall rules
+- create the http firewall rule
+VPC network
+Firewall
+Create Firewall Rule
+
+Name	default-allow-http
+Network	default
+Targets	Specified target tags
+Target tags	http-server
+Source filter	IPv4 Ranges
+Source IPv4 ranges	0.0.0.0/0
+Protocols and ports	Specified protocols and ports, and then check TCP, type: 80
+
+Create
+
+- Create the health check firewall rules
+Create Firewall Rule
+
+Name	default-allow-health-check
+Network	default
+Targets	Specified target tags
+Target tags	http-server
+Source filter	IPv4 Ranges
+Source IPv4 ranges	130.211.0.0/22, 35.191.0.0/16
+Protocols and ports	Specified protocols and ports, and then check TCP
+
+Create
+
 ### configure instance templates and create instance groups
+- Configure the instance templates
+Compute Engine
+Instance templates
+Create instance template
+
+Name      Region 1-template
+Location      Global
+Series      E2
+Machine      select e2-micro
+Advanced Options
+Networking
+
+Network tags	http-server
+
+Network	default
+Subnetwork	default Region 1
+
+Done
+
+Management
+Metadata
+ADD ITEM
+
+startup-script-url	gs://cloud-training/gcpnet/httplb/startup.sh
+
+Create
+
+Region 1-template 
++CREATE SIMILAR option from the top.
+For Name, type Region 2-template.
+Ensure Location is selected Global.
+Click Advanced Options.
+Click Networking.
+Ensure http-server is added as a network tag.
+In Network interfaces, for Subnetwork, select default (Region 2).
+Click Done.
+Click Create
+
+- Create the managed instance groups
+Instance groups 
+Create instance group
+
+Name	Region 1-mig (if required, remove extra space from the name)
+Instance template	Region 1-template
+Location	Multiple zones
+Region	Region 1
+Minimum number of instances	1
+Maximum number of instances	2
+Autoscaling signals > Click dropdown > Signal type	CPU utilization
+Target CPU utilization	80, click Done.
+Initialization period	45
+
+Create
+
+Create Instance group
+
+Name	Region 2-mig
+Instance template	Region 2-template
+Location	Multiple zones
+Region	Region 2
+Minimum number of instances	1
+Maximum number of instances	2
+Autoscaling signals > Click dropdown > Signal type	CPU utilization
+Target CPU utilization	80, click Done.
+Initialization period	45
+
+Create
+
+- Verify the backends
 ### configure the http load balancer
+Network Services > Load balancing
+click Create load balancer
+Under Application Load Balancer HTTP(S), click Next
+For Public facing or internal, select Public facing (external) and click Next
+For Global or single region deployment, select Best for global workloads and click Next
+For Create load balancer, click Configure
+Set the New HTTP(S) Load Balancer Name to http-lb
+
+- Configure the frontend
+Frontend configuration
+
+Protocol	HTTP
+IP version	IPv4
+IP address	Ephemeral
+Port	80
+
+Done
+
+Add Frontend IP and port
+
+Protocol	HTTP
+IP version	IPv6
+IP address	Auto-allocate
+Port	80
+
+Done
+
+- Configure the backend
+Backend configuration
+Create a backend service
+
+Name	http-backend
+Instance group	Region 1-mig
+Port numbers	80
+Balancing mode	Rate
+Maximum RPS	50
+Capacity	100
+
+Done
+
+Add a backend
+
+Instance group	Region 2-mig
+Port numbers	80
+Balancing mode	Utilization
+Maximum backend utilization	80
+Capacity	100
+
+Done
+
+Health Check
+Create a health check
+
+Name	http-health-check
+Protocol	TCP
+Port	80
+
+Save.
+Check the Enable Logging box.
+Set the Sample Rate to 1.
+Click Create to create the backend service.
+Click Ok.
+
+- Review and create the HTTP Load Balancer
+name: http-lb
+Create
+
 ### test the http load balancer
+- Stress test the HTTP Load Balancer
+Compute Engine
+VM instances
+Create instance
+
+Name	siege-vm
+Region	Region 3
+Zone	Zone 3
+Series	E2
+
+Create
+
+SSH
+
+sudo apt-get -y install siege
+export LB_IP=[LB_IP_v4]
+siege -c 150 -t120s http://$LB_IP
+
 ### denylist the sighe-vm
+- Create the security policy
+Network Security
+Cloud Armor Policies
+Click Create policy
 
-## Defending Edge Cache with Cloud Armor
-### 
+Name	denylist-siege
+Default rule action	Allow
 
-## Cloud Armor Preconfigured WAF Rule
-### 
+Next step
+Click Add a rule
+
+Condition > Match	Enter the SIEGE_IP
+Action	Deny
+Response code	403 (Forbidden)
+Priority	1000
+
+Done
+Next step
+Add Target
+Type: Backend service (external application load balancer)
+Target: http-backend
+Create policy
+
+## Defending Edge Cache with Cloud Armor [GSP878]
+### create a cloud storage bucket and uplaod an object
+- 
+### create a load balancer
+- 
+### delete the object from cloud storage bucket
+- 
+### create an edge security policy
+- 
+
+## Cloud Armor Preconfigured WAF Rule [GSP879]
+### create the vpc network
+- 
+### set up the test application
+- 
+### demonstrate known vulerabilities
+- 
+### define cloud armor waf rules
+- 
+### review cloud armor security rules
+- 
+### observe cloud armor security policy logs
+- 
