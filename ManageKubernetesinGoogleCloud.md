@@ -218,8 +218,9 @@ Challenge scenario
 You were onboarded at Cymbal Shops just a few months ago. You have spent a lot of time working with containers in Docker and Artifact Registry and have learned the ropes of managing new and existing deployments on GKE. You've had practice updating manifests as well as scaling, monitoring, and debugging applications running on your clusters.
 ### create a GKE cluster
 - create a GKE cluster
-gcloud beta container clusters create gmp-cluster --num-nodes=1 --zone Zone --enable-managed-prometheus
-gcloud container clusters get-credentials gmp-cluster --zone=Zone
+gcloud beta container clusters create hello-world-c053 --num-nodes=3 --zone us-east4-b --max-nodes=6 --min-nodes=2 --enable-autoscaling
+
+gcloud container clusters get-credentials hello-world-c053 --zone=us-east4-b
 
 cluster name          
 zone                  
@@ -232,10 +233,11 @@ maximum nodes         6
 
 ### enable managed prometheus on the GKE cluster
 - enable the prometheus managed collection on the GKE cluster
+gcloud beta container clusters update --enable-managed-prometheus
 
 - create namespace
 name space            
-kubectl create ns NAMESPACE
+kubectl create ns gmp-ftha
 
 - download a sample prometheus app
 gsutil cp gs://spls/gsp510/prometheus-app.yaml .
@@ -246,7 +248,7 @@ containers.name:                prometheus-test
 ports.name:                     metrics
 
 - deploy the application onto the namespace on your GKE cluster
-kubectl -n NAMESPACE apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/prometheus-engine/v0.2.3/examples/example-app.yaml
+kubectl -n gmp-ftha apply -f prometheus-app.yaml
 
 - download the pod-monitoring.yaml file
 gsutil cp gs://spls/gsp510/pod-monitoring.yaml .
@@ -258,16 +260,19 @@ matchLabels.app:                prometheus-test
 endpoints.interval:             interval period
 
 - apply the pod monitoring resource onto the namespace on your GKE cluster
-kubectl -n NAMESPACE apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/prometheus-engine/v0.2.3/examples/pod-monitoring.yaml
+kubectl -n gmp-ftha apply -f pod-monitoring.yaml
+
 ### deploy an application onto the GKE cluster
 - download the demo deployment manifest file
 gsutil cp -r gs://spls/gsp510/hello-app/ .
+
 - create a deployment onto the NAMESPACE on your GKE cluster
 hello-app/manifests/helloweb-deployment.yaml
 
-kubectl -n NAMESPACE apply -f hello-app/manifests/helloweb-deployment.yaml
+kubectl -n gmp-ftha apply -f hello-app/manifests/helloweb-deployment.yaml
 - verify you have created the deployment
 kubectl get pods
+
 ### create a logs-based metric and alerting policy
 - create a logs-based metric
 Logging > Logs Explorer > Show query > Query 
@@ -276,8 +281,12 @@ resource.type="k8s_container"
 severity=ERROR
 labels."k8s-pod/app": "recommendationservice"
 
+severity>="ERROR"
+resource.type="gce_instance"
+
 Metric Type:            Counter
 Log Metric Name:        pod-image-errors
+
 - create an alerting policy
 Monitoring > Alerting > Create Policy
 
@@ -309,33 +318,52 @@ Alert policy name:        Pod Error Alert
 ### update and redeploy your app
 - Replace the <todo> in the image section in the helloweb-deployment.yaml
 us-docker.pkg.dev/google-samples/containers/gke/hello-app:1.0
+
 - delete the helloweb from your cluster
 console: 
 three dots > Actions > Delete > Delete
 
 cli: 
 gcloud container clusters delete helloweb
-- deploy the updated helloweb-deployment.yaml on the NAMESPACE
-kubectl -n NAMESPACE apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/prometheus-engine/v0.2.3/examples/pod-monitoring.yaml
+- deploy the updated hello-app/manifests/helloweb-deployment.yaml on the gmp-ftha
+kubectl -n gmp-ftha apply -f hello-app/manifests/helloweb-deployment.yaml
+
 ### containerize your code and deploy it onto the cluster
-In the hello-app directory, update the main.go file to use Version: 2.0.0 on line 49.
-Use the hello-app/Dockerfile to create a Docker image with the v2 tag
+1. In the hello-app directory, update the main.go file to use Version: 2.0.0 on line 49.
+2. Use the hello-app/Dockerfile to create a Docker image with the v2 tag
 
-REGION-docker.pkg.dev/PROJECT-ID/REPOSITORY/IMAGE:TAG
+cd hello-app
+docker build -t us-east4-b-docker.pkg.dev/qwiklabs-gcp-01-a2e8d0bbabb5/hello-repo/hello-app:v2 .
 
-Push the newly built Docker image to your repository in Artifact Registry using the v2 tag.
+3. Push the newly built Docker image to your repository in Artifact Registry using the v2 tag.
+- configure the docker command-line tool to authenticate to artifact registry
+gcloud auth configure-docker us-east4-b-docker.pkg.dev
 
-docker push us-central1-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE:v2
+docker push us-central1-docker.pkg.dev/qwiklabs-gcp-01-a2e8d0bbabb5/hello-repo/hello-app:v2
+docker push us-central1-docker.pkg.dev/qwiklabs-gcp-01-a2e8d0bbabb5/hello-app:v2
 
-Set the image on your helloweb deployment to reflect the v2 image you pushed to Artifact Registry.
-Expose the helloweb deployment to a LoadBalancer service named service name on port 8080, and set the target port of the container to the one specified in the Dockerfile
-- 
+docker images
+
+4. Set the image on your helloweb deployment to reflect the v2 image you pushed to Artifact Registry.
+
+kubectl set image deployment/hello-app hello-app=us-east4-b-docker.pkg.dev/qwiklabs-gcp-01-a2e8d0bbabb5/hello-repo/hello-app:v2
+
+5. Expose the helloweb deployment to a LoadBalancer service named service name on port 8080, and set the target port of the container to the one specified in the Dockerfile
+kubectl expose deployment hello-app --name=hello-app-service --type=LoadBalancer --port 8080 --target-port 1234
+
+6. Navigate to the external load balancer IP address of the service name
 
 username
+student-01-cc800c404218@qwiklabs.net
 
 password
+5hod4mUxGKM7
 
 project id
+qwiklabs-gcp-01-a2e8d0bbabb5
 
 cluster name
+hello-world-c053
 
+zone
+us-east4-b
