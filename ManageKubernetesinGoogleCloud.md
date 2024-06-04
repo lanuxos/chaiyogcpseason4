@@ -212,6 +212,7 @@ gsutil cp config.yaml gs://$PROJECT
 gsutil -m acl set -R -a public-read gs://$PROJECT
 - Re-run prometheus pointing to the new configuration file by running the command below
 ./prometheus --config.file=config.yaml --export.label.project-id=$PROJECT --export.label.location=$ZONE
+
 ## Manage Kubernetes in Google Cloud: Challenge Lab [GSP510]
 Challenge scenario
 You were onboarded at Cymbal Shops just a few months ago. You have spent a lot of time working with containers in Docker and Artifact Registry and have learned the ropes of managing new and existing deployments on GKE. You've had practice updating manifests as well as scaling, monitoring, and debugging applications running on your clusters.
@@ -235,22 +236,27 @@ maximum nodes         6
 - create namespace
 name space            
 kubectl create ns NAMESPACE
+
 - download a sample prometheus app
 gsutil cp gs://spls/gsp510/prometheus-app.yaml .
+
 - update the <todo> section (line 35-38)
 containers.image:               nilebox/prometheus-example-app:latest
 containers.name:                prometheus-test
 ports.name:                     metrics
+
 - deploy the application onto the namespace on your GKE cluster
 kubectl -n NAMESPACE apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/prometheus-engine/v0.2.3/examples/example-app.yaml
 
 - download the pod-monitoring.yaml file
 gsutil cp gs://spls/gsp510/pod-monitoring.yaml .
+
 - Update the <todo> sections (lines 18-24) with the following configuration
 metadata.name:                  prometheus-test
 labels.app.kubernetes.io/name:  prometheus-test
 matchLabels.app:                prometheus-test
 endpoints.interval:             interval period
+
 - apply the pod monitoring resource onto the namespace on your GKE cluster
 kubectl -n NAMESPACE apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/prometheus-engine/v0.2.3/examples/pod-monitoring.yaml
 ### deploy an application onto the GKE cluster
