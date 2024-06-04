@@ -13,6 +13,7 @@ gcloud services enable recaptchaenterprise.googleapis.com
 - Create a firewall rule to allow HTTP traffic to the backends [console]
 VPC network > Firewall
 Create Firewall Rule
+
 Name	            default-allow-health-check
 Network	            default
 Targets	            Specified target tags
@@ -20,6 +21,7 @@ Target tags	        allow-health-check
 Source filter	    IPv4 Ranges
 Source IPv4 ranges	130.211.0.0/22, 35.191.0.0/16
 Protocols and ports	Specified protocols and ports, and then check tcp. Type 80 for the port number
+
 - Create a firewall rule to allow HTTP traffic to the backends [cli]
 gcloud compute firewall-rules create default-allow-health-check --direction=INGRESS --priority=1000 --network=default --action=ALLOW --rules=tcp:80 --source-ranges=130.211.0.0/22,35.191.0.0/16 --target-tags=allow-health-check
 
@@ -30,6 +32,7 @@ gcloud compute firewall-rules create allow-ssh --direction=INGRESS --priority=10
 Compute Engine
 Instance templates
 Create instance template
+
 Name        lb-backend-template
 Location    Global
 Series      N1
@@ -135,6 +138,7 @@ http-lb
 NOTE IP 
 - Test the HTTP Load Balancer
 http://IP
+
 ### create and deploy reCAPTCHA session token and challenge page site key
 - Create reCAPTCHA session token and WAF challenge-page site key
   - Create the reCAPTCHA session token site key and enable the WAF feature for the key
@@ -176,6 +180,7 @@ gcloud compute security-policies rules create 3000 --security-policy recaptcha-p
 gcloud compute security-policies rules create 1000 --security-policy recaptcha-policy --expression "request.path.matches('median-score.html') && token.recaptcha_session.score == 0.5" --action redirect --redirect-type google-recaptcha
 - Attach the security policy to the backend service http-backend
 gcloud compute backend-services update http-backend --security-policy recaptcha-policy --global
+
 ### validate bot management with cloud armor
 - verify cloud armor logs
 Network Security 
@@ -637,77 +642,215 @@ Create policy
 
 ## Defending Edge Cache with Cloud Armor [GSP878]
 ### create a cloud storage bucket and uplaod an object
-- 
+Cloud Storage
+Buckets
+CREATE
+BucketName
+Continue
+Location type:    REGION
+Continue
+The default storage class for your bucket:  standard
+Continue
+Uncheck Enforce public access prevention on this bucket
+Check Prevent public access
+Access Control:   Fine-grained
+Continue
+Create
+
+- Upload an Object to the bucket
+wget --output-document google.png https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png
+gsutil cp google.png gs://Bucket Name
+rm google.png
+
+Cloud Storage
+Buckets
+BucketName
+Exit access
+Add Entry
+Public
+Save
+
+Entity:   Public
+Name:     allUsers
+Access:   Reader
+
 ### create a load balancer
-- 
+Network services
+Load Balancing
+CREATE LOAD BALANCER
+load balancer:    Application Load Balancer (HTTP/HTTPS)
+Next
+Public facing or internal:    Public facing (external)
+Next
+Global or single region deployment:   Best for global workloads
+Next
+Load balancer generation:     Global external Application Load Balancer
+Next
+CONFIGURE
+Name:   edge-cache-lb
+- Frontend configuration
+default
+Done
+- Create backend configuration
+Backend configuration
+Backend services & backend buckets:     Create a backend bucket
+Backend bucket name:    lb-backend-bucket
+Browse
+Create
+- Create host and path rules
+Routing rules
+simple host and path rule
+- Review and create the HTTP Load Balancer
+Review and finalize
+Backend services and Frontend
+Create
+- Get Load Balancer IP
+- Query the Load balancer
+curl -svo /dev/null http://LOAD_BALANCER_IP/google.png
+for i in `seq 1 50`; do curl http://LOAD_BALANCER_IP/google.png; done
+
 ### delete the object from cloud storage bucket
-- 
+Cloud Storage
+BucketName
+Delete
+Delete
+
 ### create an edge security policy
-- 
+Cloud Armor policies
+Create Policy
+
+Name	edge-security-policy
+Policy type	Edge security policy
+Default rule action	Deny
+
+Apply policy to targets section
+Add Target
+
+Type 1	Backend bucket (external application load balancer)
+Backend Bucket target 1	lb-backend-bucket
+
+Done
+Create Policy
+
+- Validate Edge Security Policy
+curl -svo /dev/null http://LOAD_BALANCER_IP/google.png
+
+Observability
+Logging 
+Logs Explorer
+
+resource.type:(http_load_balancer) AND jsonPayload.@type="type.googleapis.com/google.cloud.loadbalancing.type.LoadBalancerLogEntry" AND severity>=WARNING
+
+Run Query
+
+- Remove the security policy
+Cloud Armor 
+edge-security-policy
+targets
+lb-backend-bucket
+Remove
+
+curl -svo /dev/null http://LOAD_BALANCER_IP/google.png
 
 ## Cloud Armor Preconfigured WAF Rule [GSP879]
 ### create the vpc network
-- 
+- create VPC
 gcloud compute networks create ca-lab-vpc --subnet-mode custom
+- Create a subnet
 gcloud compute networks subnets create ca-lab-subnet --network ca-lab-vpc --range 10.0.0.0/24 --region europe-west4
+- create VPC firewall rules
 gcloud compute firewall-rules create allow-js-site --allow tcp:3000 --network ca-lab-vpc
+- create firewall rule to allow health-checks
 gcloud compute firewall-rules create allow-health-check --network=ca-lab-vpc --action=allow --direction=ingress --source-ranges=130.211.0.0/22,35.191.0.0/16 --target-tags=allow-healthcheck --rules=tcp
 ### set up the test application
 - Create the OWASP Juice Shop application
 gcloud compute instances create-with-container owasp-juice-shop-app --container-image bkimminich/juice-shop --network ca-lab-vpc --subnet ca-lab-subnet --private-network-ip=10.0.0.3 --machine-type n1-standard-2 --zone europe-west4-a --tags allow-healthcheck
 
+- set up the cloud load balancer component: instance group
 gcloud compute instance-groups unmanaged create juice-shop-group --zone=europe-west4-a
 
+- add the Juice Shop Google Compute Engine (GCK) instance to the unmanaged instance group
 gcloud compute instance-groups unmanaged add-instances juice-shop-group --zone=europe-west4-a --instances=owasp-juice-shop-app
 
+- Set the named port to that of the Juice Shop application
 gcloud compute instance-groups unmanaged set-named-ports juice-shop-group --named-ports=http:3000 --zone=europe-west4-a
 
+- Set up the Cloud load balancer component: health check
 gcloud compute health-checks create tcp tcp-port-3000 --port 3000
 
+- Set up the Cloud load balancer component: backend service
+  - create the backend service parameters
 gcloud compute backend-services create juice-shop-backend --protocol HTTP --port-name http --health-checks tcp-port-3000 --enable-logging --global
-
+  - Add the Juice Shop instance group to the backend service
 gcloud compute backend-services add-backend juice-shop-backend --instance-group=juice-shop-group --instance-group-zone=europe-west4-a --global
 
+- Set up the Cloud load balancer component: URL map
 gcloud compute url-maps create juice-shop-loadbalancer --default-service juice-shop-backend
 
+- Set up the Cloud load balancer component: target proxy
 gcloud compute target-http-proxies create juice-shop-proxy  --url-map juice-shop-loadbalancer
 
+- Set up the Cloud load balancer component: forwarding rule
 gcloud compute forwarding-rules create juice-shop-rule --global --target-http-proxy=juice-shop-proxy --ports=80
 
+- Verify the Juice Shop service is online
 PUBLIC_SVC_IP="$(gcloud compute forwarding-rules describe juice-shop-rule  --global --format="value(IPAddress)")"
 
 echo $PUBLIC_SVC_IP
-
 curl -Ii http://$PUBLIC_SVC_IP
-
 curl -Ii http://$PUBLIC_SVC_IP/ftp
 
-
 ### demonstrate known vulerabilities
-- 
+- Observe an LFI vulnerability: path traversal
+curl -Ii http://$PUBLIC_SVC_IP/ftp
+curl -Ii http://$PUBLIC_SVC_IP/ftp/../
+
+- Observe an RCE vulnerability
+curl -Ii http://$PUBLIC_SVC_IP/ftp?doc=/bin/ls
+
+- Observe a well-known scanner's access
+curl -Ii http://$PUBLIC_SVC_IP -H "User-Agent: blackwidow"
+
+- Observe a protocol attack: HTTP splitting
+curl -Ii "http://$PUBLIC_SVC_IP/index.html?foo=advanced%0d%0aContent-Length:%200%0d%0a%0d%0aHTTP/1.1%20200%20OK%0d%0aContent-Type:%20text/html%0d%0aContent-Length:%2035%0d%0a%0d%0a<html>Sorry,%20System%20Down</html>"
+
+- Observe session fixation
+curl -Ii http://$PUBLIC_SVC_IP -H session_id=X
+
 ### define cloud armor waf rules
-- 
+- List the preconfigured WAF rules, using the following command in Cloud Shell
 gcloud compute security-policies list-preconfigured-expression-sets
 
+- Create the Cloud Armor security policy using the following command in Cloud Shell
 gcloud compute security-policies create block-with-modsec-crs --description "Block with OWASP ModSecurity CRS"
 
+- update the security policy default rule
 gcloud compute security-policies rules update 2147483647 --security-policy block-with-modsec-crs --action "deny-403"
 
+- find your public IP
 MY_IP=$(curl ifconfig.me)
 
+- Add the first rule to allow access from your IP
 gcloud compute security-policies rules create 10000 --security-policy block-with-modsec-crs  --description "allow traffic from my IP" --src-ip-ranges "$MY_IP/32" --action "allow"
 
+- Apply the OWASP ModSecurity Core Rule Set that prevents path traversal for local file inclusions
 gcloud compute security-policies rules create 9000 --security-policy block-with-modsec-crs  --description "block local file inclusion" --expression "evaluatePreconfiguredExpr('lfi-stable')" --action deny-403
 
+- update the security policy to block Remote Code Execution (rce)
 gcloud compute security-policies rules create 9001 --security-policy block-with-modsec-crs  --description "block rce attacks" --expression "evaluatePreconfiguredExpr('rce-stable')" --action deny-403
 
+- Update the security policy to block security scanners
 gcloud compute security-policies rules create 9002 --security-policy block-with-modsec-crs  --description "block scanners" --expression "evaluatePreconfiguredExpr('scannerdetection-stable')" --action deny-403
 
+- update the security policy to block protocol attacks
 gcloud compute security-policies rules create 9003 --security-policy block-with-modsec-crs  --description "block protocol attacks" --expression "evaluatePreconfiguredExpr('protocolattack-stable')" --action deny-403
 
+- Update the security policy to block session fixation
 gcloud compute security-policies rules create 9004 --security-policy block-with-modsec-crs --description "block session fixation attacks" --expression "evaluatePreconfiguredExpr('sessionfixation-stable')" --action deny-403
 
+- Attach the security policy to the backend service
 gcloud compute backend-services update juice-shop-backend --security-policy block-with-modsec-crs --global
+
 ### review cloud armor security rules
 - 
 ### observe cloud armor security policy logs
