@@ -106,6 +106,7 @@ curl -ks https://`kubectl get svc frontend -o=jsonpath="{.status.loadBalancer.in
 kubectl apply -f services/hello-blue.yaml
 - verify the right version is being used
 curl -ks https://`kubectl get svc frontend -o=jsonpath="{.status.loadBalancer.ingress[0].ip}"`/version
+
 ## Debugging Apps on Google Kubernetes Engine [GSP736]
 ### Infrastructure setup
 - check cluster status
@@ -170,6 +171,7 @@ Container logs
 - search the log message in the code
 grep -nri 'successfully parsed product catalog json' src
 - 
+
 ## Collect Metrics from Exporters using the Managed Service for Prometheus [GSP1026]
 ### Deploy GKE cluster
 - Deploy a basic GKE cluster to set up the lab
@@ -216,11 +218,23 @@ gsutil -m acl set -R -a public-read gs://$PROJECT
 ## Manage Kubernetes in Google Cloud: Challenge Lab [GSP510]
 Challenge scenario
 You were onboarded at Cymbal Shops just a few months ago. You have spent a lot of time working with containers in Docker and Artifact Registry and have learned the ropes of managing new and existing deployments on GKE. You've had practice updating manifests as well as scaling, monitoring, and debugging applications running on your clusters.
+### environment
+
+export PROJECT_ID=$(gcloud config get-value project)
+export REGION="${ZONE%-*}"
+export REPO_NAME=
+export CLUSTER_NAME=
+export ZONE=
+export NAMESPACE=
+export SERVICE_NAME=
+export INTERVAL=
+
 ### create a GKE cluster
 - create a GKE cluster
-gcloud beta container clusters create hello-world-c053 --num-nodes=3 --zone us-east4-b --max-nodes=6 --min-nodes=2 --enable-autoscaling
+gcloud container clusters create $CLUSTER_NAME --num-nodes=3 --zone $ZONE --max-nodes=6 --min-nodes=2 --enable-autoscaling --cluster-version latest --release-channel regular
 
-gcloud container clusters get-credentials hello-world-c053 --zone=us-east4-b
+- check cluster status
+gcloud container clusters get-credentials $CLUSTER_NAME --zone=$ZONE
 
 cluster name          
 zone                  
@@ -232,75 +246,80 @@ Minimum nodes         2
 maximum nodes         6
 
 ### enable managed prometheus on the GKE cluster
-- enable the prometheus managed collection on the GKE cluster
-gcloud beta container clusters update --enable-managed-prometheus
+1. enable the prometheus managed collection on the GKE cluster
+gcloud container clusters update $CLUSTER_NAME --enable-managed-prometheus --zone $ZONE
 
-- create namespace
-name space            
-kubectl create ns gmp-ftha
+2. create namespace           
+kubectl create ns $NAMESPACE
 
-- download a sample prometheus app
+3. download a sample prometheus app
 gsutil cp gs://spls/gsp510/prometheus-app.yaml .
 
-- update the <todo> section (line 35-38)
+4. update the <todo> section (line 35-38)
 containers.image:               nilebox/prometheus-example-app:latest
 containers.name:                prometheus-test
 ports.name:                     metrics
 
-- deploy the application onto the namespace on your GKE cluster
-kubectl -n gmp-ftha apply -f prometheus-app.yaml
+5. deploy the application onto the namespace on your GKE cluster
+kubectl -n $NAMESPACE apply -f prometheus-app.yaml
 
-- download the pod-monitoring.yaml file
+6. download the pod-monitoring.yaml file
 gsutil cp gs://spls/gsp510/pod-monitoring.yaml .
 
-- Update the <todo> sections (lines 18-24) with the following configuration
+7. Update the <todo> sections (lines 18-24) with the following configuration
 metadata.name:                  prometheus-test
 labels.app.kubernetes.io/name:  prometheus-test
 matchLabels.app:                prometheus-test
 endpoints.interval:             interval period
 
-- apply the pod monitoring resource onto the namespace on your GKE cluster
-kubectl -n gmp-ftha apply -f pod-monitoring.yaml
+8. apply the pod monitoring resource onto the namespace on your GKE cluster
+kubectl -n $NAMESPACE apply -f pod-monitoring.yaml
 
 ### deploy an application onto the GKE cluster
-- download the demo deployment manifest file
+1. download the demo deployment manifest file
 gsutil cp -r gs://spls/gsp510/hello-app/ .
 
-- create a deployment onto the NAMESPACE on your GKE cluster
-hello-app/manifests/helloweb-deployment.yaml
+2. create a deployment onto the NAMESPACE on your GKE cluster
+kubectl -n $NAMESPACE apply -f hello-app/manifests/helloweb-deployment.yaml
 
-kubectl -n gmp-ftha apply -f hello-app/manifests/helloweb-deployment.yaml
-- verify you have created the deployment
+3. verify you have created the deployment, and navigate to the helloweb deployment details page
+kubectl get deployment
+kubectl get replicasets
 kubectl get pods
+kubectl get services
 
 ### create a logs-based metric and alerting policy
-- create a logs-based metric
-Logging > Logs Explorer > Show query > Query 
+Create a logs-based metric
+1. create a logs-based metric
+Logging 
+Logs Explorer 
+Show query 
+Query 
 
-resource.type="k8s_container"
-severity=ERROR
-labels."k8s-pod/app": "recommendationservice"
-
-severity>="ERROR"
-resource.type="gce_instance"
+resource.type="k8s_pod"
+severity=WARNING
 
 Metric Type:            Counter
 Log Metric Name:        pod-image-errors
 
-- create an alerting policy
-Monitoring > Alerting > Create Policy
+Create an alerting policy
+1. create an alerting policy
+Monitoring 
+Alerting 
+Create Policy
 
 Click on Select a metric dropdown. Unselect the Active
-In filter by resource and metric name field, type Error_Rate
-Kubernetes Container > Logs-Based Metric
-logging/user/Error_Rate_SLI 
+pod
+Kubernetes Pod
+Logs-based metric
+Logging/user/pod-image-errors
 Apply
-Rolling windows function
+Rolling windows function [10min]
 Next
 0 as your Threshold value
 Next
 Disable Use notification channel.
-Provide an alert name Pod Error Alert 
+Provide an alert name "Pod Error Alert"
 Next
 Create Policy
 
@@ -316,54 +335,44 @@ Use notification channel: Disable
 Alert policy name:        Pod Error Alert
 
 ### update and redeploy your app
-- Replace the <todo> in the image section in the helloweb-deployment.yaml
+1. Replace the <todo> in the image section in the helloweb-deployment.yaml
 us-docker.pkg.dev/google-samples/containers/gke/hello-app:1.0
 
-- delete the helloweb from your cluster
-console: 
-three dots > Actions > Delete > Delete
+2. delete the helloweb from your cluster
+Kubernetes Engine
+Workload
+select
+DELETE
 
-cli: 
-gcloud container clusters delete helloweb
-- deploy the updated hello-app/manifests/helloweb-deployment.yaml on the gmp-ftha
-kubectl -n gmp-ftha apply -f hello-app/manifests/helloweb-deployment.yaml
+3. deploy the updated hello-app/manifests/helloweb-deployment.yaml on the $NAMESPACE
+kubectl -n $NAMESPACE apply -f hello-app/manifests/helloweb-deployment.yaml
+
+You should verify that it has deployed correctly with no errors. Your Kubernetes Workloads page of helloweb status is OK
 
 ### containerize your code and deploy it onto the cluster
 1. In the hello-app directory, update the main.go file to use Version: 2.0.0 on line 49.
+
 2. Use the hello-app/Dockerfile to create a Docker image with the v2 tag
 
 cd hello-app
-docker build -t us-east4-b-docker.pkg.dev/qwiklabs-gcp-01-a2e8d0bbabb5/hello-repo/hello-app:v2 .
+docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/hello-app:v2 .
 
 3. Push the newly built Docker image to your repository in Artifact Registry using the v2 tag.
 - configure the docker command-line tool to authenticate to artifact registry
-gcloud auth configure-docker us-east4-b-docker.pkg.dev
+gcloud auth configure-docker $REGION-docker.pkg.dev
 
-docker push us-central1-docker.pkg.dev/qwiklabs-gcp-01-a2e8d0bbabb5/hello-repo/hello-app:v2
-docker push us-central1-docker.pkg.dev/qwiklabs-gcp-01-a2e8d0bbabb5/hello-app:v2
+- tag the local image with the repo name
+docker tag docker tag $REGION-docker.pkg.dev $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/hello-app:v2
 
-docker images
+- push image to repo
+docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/hello-app:v2
 
 4. Set the image on your helloweb deployment to reflect the v2 image you pushed to Artifact Registry.
 
-kubectl set image deployment/hello-app hello-app=us-east4-b-docker.pkg.dev/qwiklabs-gcp-01-a2e8d0bbabb5/hello-repo/hello-app:v2
+kubectl set image deployment/helloweb -n $NAMESPACE hello-app=$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/hello-app:v2
 
-5. Expose the helloweb deployment to a LoadBalancer service named service name on port 8080, and set the target port of the container to the one specified in the Dockerfile
-kubectl expose deployment hello-app --name=hello-app-service --type=LoadBalancer --port 8080 --target-port 1234
+5. Expose the helloweb deployment to a LoadBalancer service named SERVICE_NAME on port 8080, and set the target port of the container to the one specified in the Dockerfile
+
+kubectl expose deployment helloweb -n $NAMESPACE --name=$SERVICE_NAME --type=LoadBalancer --port 8080 --target-port 8080
 
 6. Navigate to the external load balancer IP address of the service name
-
-username
-student-01-cc800c404218@qwiklabs.net
-
-password
-5hod4mUxGKM7
-
-project id
-qwiklabs-gcp-01-a2e8d0bbabb5
-
-cluster name
-hello-world-c053
-
-zone
-us-east4-b

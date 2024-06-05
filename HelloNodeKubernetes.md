@@ -99,4 +99,3 @@ kubectl get deployments
 ## Test you knowledge
 ### 
 
-qwiklabs-gcp-03-4b61f0930f0b
