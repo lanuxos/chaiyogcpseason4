@@ -1,5 +1,12 @@
 # Build LookML Objects in Looker
 ## Looker Developer: Qwik Start [GSP891]
+
+LookML hierarchy
+Project
+  Model
+    Explore
+      View
+
 ### Create a view
 - 
 
