@@ -1,42 +1,582 @@
 # Build Infrastructure with Terraform on Google Cloud
 ## Terraform Fundamentals [GSP156]
 ### What is Terraform?
-- 
+Terraform is a tool for building, changing, and versioning infrastructure safely and efficiently. Terraform can manage existing, popular service providers and custom in-house solutions.
+
+Configuration files describe to Terraform the components needed to run a single application or your entire data center. Terraform generates an execution plan describing what it will do to reach the desired state, and then executes it to build the described infrastructure. As the configuration changes, Terraform can determine what changed and create incremental execution plans that can be applied.
+
+The infrastructure Terraform can manage includes both low-level components such as compute instances, storage, and networking, and high-level components such as DNS entries and SaaS features.
+
+Key features
+Infrastructure as code
+Infrastructure is described using a high-level configuration syntax. This allows a blueprint of your data center to be versioned and treated as you would any other code. Additionally, infrastructure can be shared and re-used.
+
+Execution plans
+Terraform has a planning step in which it generates an execution plan. The execution plan shows what Terraform will do when you execute the apply command. This lets you avoid any surprises when Terraform manipulates infrastructure.
+
+Resource graph
+Terraform builds a graph of all your resources and parallelizes the creation and modification of any non-dependent resources. Because of this, Terraform builds infrastructure as efficiently as possible, and operators get insight into dependencies in their infrastructure.
+
+Change automation
+Complex changesets can be applied to your infrastructure with minimal human interaction. With the previously mentioned execution plan and resource graph, you know exactly what Terraform will change and in what order, which helps you avoid many possible human errors.
 
 ### Verifying Terraform installation
-- 
+- open a new Cloud Shell and execute below command to verify Terraform
+terraform
 
 ### Build Ingrastructure
-- 
+- Configuration, launch a single VM instance
+touch instance.tf
 
-### Test your understanding
-- 
+```
+resource "google_compute_instance" "terraform" {
+  project      = "qwiklabs-gcp-04-1023dd5e96d7"
+  name         = "terraform"
+  machine_type = "e2-medium"
+  zone         = "us-east1-c"
 
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-11"
+    }
+  }
+
+  network_interface {
+    network = "default"
+    access_config {
+    }
+  }
+}
+```
+- Initialization
+terraform init
+terraform plan
+- Apply changes
+terraform apply
+yes
+terraform show
 
 ## Infrastructure as Code with Terraform [GSP750]
+A simple workflow for deployment will follow closely to the steps below:
+
+- Scope - Confirm what resources need to be created for a given project.
+- Author - Create the configuration file in HCL based on the scoped parameters.
+- Initialize - Run terraform init in the project directory with the configuration files. This will download the correct provider plug-ins for the project.
+- Plan & Apply - Run terraform plan to verify creation process and then terraform apply to create real resources as well as the state file that compares future changes in your configuration files to what actually exists in your deployment environment.
 ### Build Infrastructure
 -
+touch main.tf
+
+```
+terraform {
+  required_providers {
+    google = {
+      source = "hashicorp/google"
+      version = "3.5.0"
+    }
+  }
+}
+
+provider "google" {
+
+  project = "qwiklabs-gcp-04-3f59a7e7bb00"
+  region  = "europe-west1"
+  zone    = "europe-west1-b"
+}
+
+resource "google_compute_network" "vpc_network" {
+  name = "terraform-network"
+}
+```
+
+terraform init
+terraform apply
+yes
+terraform show
 
 ### Change Infrastructure
--
+- Adding resources
+
+```
+resource "google_compute_instance" "vm_instance" {
+  name         = "terraform-instance"
+  machine_type = "e2-micro"
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-11"
+    }
+  }
+
+  network_interface {
+    network = google_compute_network.vpc_network.name
+    access_config {
+    }
+  }
+}
+```
+
+terraform apply
+yes
+
+- Changing resources
+
+```
+resource "google_compute_instance" "vm_instance" {
+  name         = "terraform-instance"
+  machine_type = "e2-micro"
+  tags         = ["web", "dev"]
+  # ...
+}
+```
+
+terraform apply
+yes
+- Destructive changes
+
+```
+  boot_disk {
+    initialize_params {
+      image = "cos-cloud/cos-stable"
+    }
+  }
+
+```
+
+terraform apply
+yes
+
+- Destroy infrastructure
+terraform destroy
+yes
 
 ### Create resource dependencies
--
+- create instance
+terraform apply
+yes
+
+- Assigning a static IP address
+
+```
+resource "google_compute_address" "vm_static_ip" {
+  name = "terraform-static-ip"
+}
+```
+
+terraform plan
+
+```
+  network_interface {
+    network = google_compute_network.vpc_network.self_link
+    access_config {
+      nat_ip = google_compute_address.vm_static_ip.address
+    }
+  }
+```
+
+terraform plan -out static_ip
+terraform apply "static_ip"
+
+- Implicit and explicit dependencies
+
+```
+# New resource for the storage bucket our application will use.
+resource "google_storage_bucket" "example_bucket" {
+  name     = "<UNIQUE-BUCKET-NAME>"
+  location = "US"
+
+  website {
+    main_page_suffix = "index.html"
+    not_found_page   = "404.html"
+  }
+}
+
+# Create a new instance that uses the bucket
+resource "google_compute_instance" "another_instance" {
+  # Tells Terraform that this VM instance must be created only after the
+  # storage bucket has been created.
+  depends_on = [google_storage_bucket.example_bucket]
+
+  name         = "terraform-instance-2"
+  machine_type = "e2-micro"
+
+  boot_disk {
+    initialize_params {
+      image = "cos-cloud/cos-stable"
+    }
+  }
+
+  network_interface {
+    network = google_compute_network.vpc_network.self_link
+    access_config {
+    }
+  }
+}
+```
+
+terraform plan
+terraform apply
 
 ### Provision Infrastructure
--
+- Defining a provisioner
 
+```
+resource "google_compute_instance" "vm_instance" {
+  name         = "terraform-instance"
+  machine_type = "e2-micro"
+  tags         = ["web", "dev"]
+
+  provisioner "local-exec" {
+    command = "echo ${google_compute_instance.vm_instance.name}:  ${google_compute_instance.vm_instance.network_interface[0].access_config[0].nat_ip} >> ip_address.txt"
+  }
+
+  # ...
+}
+```
+
+terraform apply
+terraform taint google_compute_instance.vm_instance
+terraform apply
+
+- Failed provisioners and tainted resources
+- Destroy provisioners
 
 ## Interact with Terraform Modules [GSP751]
 ### What is a Terraform module?
-- 
+A Terraform module is a set of Terraform configuration files in a single directory. Even a simple configuration consisting of a single directory with one or more .tf files is a module. When you run Terraform commands directly from such a directory, it is considered the root module. So in this sense, every Terraform configuration is part of a module. You may have a simple set of Terraform configuration files like this:
+
+├── LICENSE
+├── README.md
+├── main.tf
+├── variables.tf
+├── outputs.tf
+In this case, when you run Terraform commands from within the minimal-module directory, the contents of that directory are considered the root module.
+
+Calling modules
+Terraform commands will only directly use the configuration files in one directory, which is usually the current working directory. However, your configuration can use module blocks to call modules in other directories. When Terraform encounters a module block, it loads and processes that module's configuration files.
+
+A module that is called by another configuration is sometimes referred to as a "child module" of that configuration.
+
+Local and remote modules
+Modules can be loaded from either the local filesystem or a remote source. Terraform supports a variety of remote sources, including the Terraform Registry, most version control systems, HTTP URLs, and Terraform Cloud or Terraform Enterprise private module registries.
+
+Module best practices
+In many ways, Terraform modules are similar to the concepts of libraries, packages, or modules found in most programming languages, and they provide many of the same benefits. Just like almost any non-trivial computer program, real-world Terraform configurations should almost always use modules to provide the benefits mentioned above.
+
+It is recommended that every Terraform practitioner use modules by following these best practices:
+
+Start writing your configuration with a plan for modules. Even for slightly complex Terraform configurations managed by a single person, the benefits of using modules outweigh the time it takes to use them properly.
+
+Use local modules to organize and encapsulate your code. Even if you aren't using or publishing remote modules, organizing your configuration in terms of modules from the beginning will significantly reduce the burden of maintaining and updating your configuration as your infrastructure grows in complexity.
+
+Use the public Terraform Registry to find useful modules. This way you can quickly and confidently implement your configuration by relying on the work of others.
+
+Publish and share modules with your team. Most infrastructure is managed by a team of people, and modules are an important tool that teams can use to create and maintain infrastructure. As mentioned earlier, you can publish modules either publicly or privately. You will see how to do this in a later lab in this series.
 
 ### Use modules from the Registry
-- 
+[Terraform Registry page](https://registry.terraform.io/modules/terraform-google-modules/network/google/3.3.0)
+
+- Create a Terraform configuration
+git clone https://github.com/terraform-google-modules/terraform-google-network
+cd terraform-google-network
+git checkout tags/v6.0.1 -b v6.0.1
+
+- Set values for module input variables
+- Define root input variables
+gcloud config list --format 'value(core.project)'
+
+variables.tf
+```
+variable "project_id" {
+  description = "The project ID to host the network in"
+  default     = "FILL IN YOUR PROJECT ID HERE"
+}
+```
+
+```
+variable "network_name" {
+  description = "The name of the VPC network being created"
+  default     = "example-vpc"
+}
+```
+
+main.tf
+```
+module "test-vpc-module" {
+  ...
+  project_id   = var.project_id
+  network_name = var.network_name
+  ...
+```
+
+In the main.tf file, update the subnet regions on lines 35, 40, and 47 from us-west1 to REGION
+
+- Define root output values
+output.tf
+
+- Provision infrastructure
+cd ~/terraform-google-network/examples/simple_project
+terraform init
+terraform apply
+yes
+
+- Clean up your infrastructure
+terraform destroy
+yes
+cd ~
+rm -rd terraform-google-network -f
 
 ### Build a module
-- 
+- Module structure
+├── LICENSE
+├── README.md
+├── main.tf
+├── variables.tf
+├── outputs.tf
 
+- Create a module
+cd ~
+touch main.tf
+mkdir -p modules/gcs-static-website-bucket
+cd modules/gcs-static-website-bucket
+touch website.tf variables.tf outputs.tf
+
+README.md
+```
+tee -a README.md <<EOF
+# GCS static website bucket
+
+This module provisions Cloud Storage buckets configured for static website hosting.
+EOF
+```
+
+LICENSE
+```
+tee -a LICENSE <<EOF
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+EOF
+```
+
+website.tf
+```
+resource "google_storage_bucket" "bucket" {
+  name               = var.name
+  project            = var.project_id
+  location           = var.location
+  storage_class      = var.storage_class
+  labels             = var.labels
+  force_destroy      = var.force_destroy
+  uniform_bucket_level_access = true
+
+  versioning {
+    enabled = var.versioning
+  }
+
+  dynamic "retention_policy" {
+    for_each = var.retention_policy == null ? [] : [var.retention_policy]
+    content {
+      is_locked        = var.retention_policy.is_locked
+      retention_period = var.retention_policy.retention_period
+    }
+  }
+
+  dynamic "encryption" {
+    for_each = var.encryption == null ? [] : [var.encryption]
+    content {
+      default_kms_key_name = var.encryption.default_kms_key_name
+    }
+  }
+
+  dynamic "lifecycle_rule" {
+    for_each = var.lifecycle_rules
+    content {
+      action {
+        type          = lifecycle_rule.value.action.type
+        storage_class = lookup(lifecycle_rule.value.action, "storage_class", null)
+      }
+      condition {
+        age                   = lookup(lifecycle_rule.value.condition, "age", null)
+        created_before        = lookup(lifecycle_rule.value.condition, "created_before", null)
+        with_state            = lookup(lifecycle_rule.value.condition, "with_state", null)
+        matches_storage_class = lookup(lifecycle_rule.value.condition, "matches_storage_class", null)
+        num_newer_versions    = lookup(lifecycle_rule.value.condition, "num_newer_versions", null)
+      }
+    }
+  }
+}
+```
+
+variables.tf
+```
+variable "name" {
+  description = "The name of the bucket."
+  type        = string
+}
+
+variable "project_id" {
+  description = "The ID of the project to create the bucket in."
+  type        = string
+}
+
+variable "location" {
+  description = "The location of the bucket."
+  type        = string
+}
+
+variable "storage_class" {
+  description = "The Storage Class of the new bucket."
+  type        = string
+  default     = null
+}
+
+variable "labels" {
+  description = "A set of key/value label pairs to assign to the bucket."
+  type        = map(string)
+  default     = null
+}
+
+
+variable "bucket_policy_only" {
+  description = "Enables Bucket Policy Only access to a bucket."
+  type        = bool
+  default     = true
+}
+
+variable "versioning" {
+  description = "While set to true, versioning is fully enabled for this bucket."
+  type        = bool
+  default     = true
+}
+
+variable "force_destroy" {
+  description = "When deleting a bucket, this boolean option will delete all contained objects. If false, Terraform will fail to delete buckets which contain objects."
+  type        = bool
+  default     = true
+}
+
+variable "iam_members" {
+  description = "The list of IAM members to grant permissions on the bucket."
+  type = list(object({
+    role   = string
+    member = string
+  }))
+  default = []
+}
+
+variable "retention_policy" {
+  description = "Configuration of the bucket's data retention policy for how long objects in the bucket should be retained."
+  type = object({
+    is_locked        = bool
+    retention_period = number
+  })
+  default = null
+}
+
+variable "encryption" {
+  description = "A Cloud KMS key that will be used to encrypt objects inserted into this bucket"
+  type = object({
+    default_kms_key_name = string
+  })
+  default = null
+}
+
+variable "lifecycle_rules" {
+  description = "The bucket's Lifecycle Rules configuration."
+  type = list(object({
+    # Object with keys:
+    # - type - The type of the action of this Lifecycle Rule. Supported values: Delete and SetStorageClass.
+    # - storage_class - (Required if action type is SetStorageClass) The target Storage Class of objects affected by this Lifecycle Rule.
+    action = any
+
+    # Object with keys:
+    # - age - (Optional) Minimum age of an object in days to satisfy this condition.
+    # - created_before - (Optional) Creation date of an object in RFC 3339 (e.g. 2017-06-13) to satisfy this condition.
+    # - with_state - (Optional) Match to live and/or archived objects. Supported values include: "LIVE", "ARCHIVED", "ANY".
+    # - matches_storage_class - (Optional) Storage Class of objects to satisfy this condition. Supported values include: MULTI_REGIONAL, REGIONAL, NEARLINE, COLDLINE, STANDARD, DURABLE_REDUCED_AVAILABILITY.
+    # - num_newer_versions - (Optional) Relevant only for versioned objects. The number of newer versions of an object to satisfy this condition.
+    condition = any
+  }))
+  default = []
+}
+```
+
+outputs.tf
+```
+output "bucket" {
+  description = "The created storage bucket"
+  value       = google_storage_bucket.bucket
+}
+```
+
+main.tf
+```
+module "gcs-static-website-bucket" {
+  source = "./modules/gcs-static-website-bucket"
+
+  name       = var.name
+  project_id = var.project_id
+  location   = "REGION"
+
+  lifecycle_rules = [{
+    action = {
+      type = "Delete"
+    }
+    condition = {
+      age        = 365
+      with_state = "ANY"
+    }
+  }]
+}
+```
+
+cd ~
+touch outputs.tf
+
+```
+output "bucket-name" {
+  description = "Bucket names."
+  value       = "module.gcs-static-website-bucket.bucket"
+}
+```
+
+touch variables.tf
+
+```
+variable "project_id" {
+  description = "The ID of the project in which to provision resources."
+  type        = string
+  default     = "FILL IN YOUR PROJECT ID HERE"
+
+}
+
+variable "name" {
+  description = "Name of the buckets to create."
+  type        = string
+  default     = "FILL IN A (UNIQUE) BUCKET NAME HERE"
+}
+```
+
+terraform init
+terraform apply
+yes
+
+- Upload files to the bucket
+
+cd ~
+curl https://raw.githubusercontent.com/hashicorp/learn-terraform-modules/master/modules/aws-s3-static-website-bucket/www/index.html > index.html
+curl https://raw.githubusercontent.com/hashicorp/learn-terraform-modules/blob/master/modules/aws-s3-static-website-bucket/www/error.html > error.html
+
+gsutil cp *.html gs://YOUR-BUCKET-NAME
 
 ## Managing Terraform State [GSP752]
 ### Purpose of Terraform state
