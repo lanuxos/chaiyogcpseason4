@@ -1,4 +1,5 @@
 # Build LookML Objects in Looker
+[Looker Overview](https://cloud.google.com/looker/docs)
 ## Looker Developer: Qwik Start [GSP891]
 
 LookML hierarchy
