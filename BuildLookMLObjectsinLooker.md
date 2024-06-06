@@ -607,22 +607,8 @@ explore: events {
 ```
 ## Build LookML Objects in Looker: Challenge Lab [GSP361]
 ### Create dimensions and measures
-- 
-
-### Create a persistent derived table
-- 
-
-### Use Explore filters
-- 
-
-### Apply a datagroup to an Explore
-- 
-
-[SOLUTION](https://github.com/quiccklabs/Labs_solutions/blob/6919838bdee340ac97f3d308d341758c1468806e/Build%20LookML%20Objects%20in%20Looker%3A%20Challenge%20Lab)
-
-FILE NAME :- order_items_challenge
-
-
+- order_items_challenge.view
+```
 view: order_items_challenge {
   sql_table_name: `cloud-training-demos.looker_ecomm.order_items’  ;;
   drill_fields: [order_item_id]
@@ -661,19 +647,11 @@ view: order_items_challenge {
   }
 
 }
+```
 
-
-
-
-
-=========================================================================================================================================================
-
-
-
-
-FILE NAME :- user_details
-
-
+### Create a persistent derived table
+- user_details.view
+```
 # If necessary, uncomment the line below to include explore_source.
 # include: "training_ecommerce.model.lkml"
 
@@ -712,21 +690,12 @@ view: user_details {
     description: ""
   }
 }
+```
 
+### Use Explore filters
+- training_ecommerce.model
 
-
-
-
-=========================================================================================================================================================
-
-
-
-
-FILE NAME :- training_ecommerce
-
-
-
-
+```
 connection: "bigquery_public_data_looker"
 
 # include all the views
@@ -829,23 +798,11 @@ explore: events {
     relationship: many_to_one
   }
 }
+```
 
-
-
-
-
-
-==========================================================================================================================================================================
-
-
-
-FINAL TASK ::
-
-FILE NAME :-  training_ecommerce
-
-
-
-
+### Apply a datagroup to an Explore
+- training_ecommerce.model
+```
 connection: "bigquery_public_data_looker"
 
 # include all the views
@@ -926,8 +883,4 @@ explore: events {
     relationship: many_to_one
   }
 }
-
-
-
-
-==========================================================================================================================================================================
+```
