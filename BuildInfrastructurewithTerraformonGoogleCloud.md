@@ -792,9 +792,11 @@ In this lab, you will use Terraform to import and create multiple VM instances, 
 
 gcloud auth list
 
-export REGION="${ZONE%-*}"
-
 export PROJECT_ID=$DEVSHELL_PROJECT_ID
+export REGION="${ZONE%-*}"
+export ZONE=
+export BUCKET_NAME=
+export INSTANCE_NAME=
 
 instances_output=$(gcloud compute instances list --format="value(id)")
 
@@ -802,9 +804,7 @@ instances_output=$(gcloud compute instances list --format="value(id)")
 IFS=$'\n' read -r -d '' instance_id_1 instance_id_2 <<< "$instances_output"
 
 - Output instance IDs with custom name
-
 export INSTANCE_ID_1=$instance_id_1
-
 export INSTANCE_ID_2=$instance_id_2
 
 ### Create the configuration files
@@ -927,7 +927,7 @@ cd modules/storage/
 cat > storage.tf <<EOF
 
 resource "google_storage_bucket" "storage-bucket" {
-  name          = "$BUCKET_NAME"
+  name          = "$BUCKET_NAME="
   location      = "US"
   force_destroy = true
   uniform_bucket_level_access = true
@@ -975,7 +975,7 @@ cat > main.tf <<EOF
 
 terraform {
   backend "gcs" {
-    bucket  = "$BUCKET_NAME"
+    bucket  = "$BUCKET_NAME="
  prefix  = "terraform/state"
   }
   required_providers {
@@ -1142,7 +1142,7 @@ cat > main.tf <<EOF
 
 terraform {
   backend "gcs" {
-    bucket  = "$BUCKET_NAME"
+    bucket  = "$BUCKET_NAME="
  prefix  = "terraform/state"
   }
   required_providers {
@@ -1286,7 +1286,7 @@ cat > main.tf <<EOF
 
 terraform {
   backend "gcs" {
-    bucket  = "$BUCKET_NAME"
+    bucket  = "$BUCKET_NAME="
  prefix  = "terraform/state"
   }
   required_providers {
