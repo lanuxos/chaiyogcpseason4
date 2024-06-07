@@ -797,6 +797,7 @@ export REGION="${ZONE%-*}"
 export ZONE=
 export BUCKET_NAME=
 export INSTANCE_NAME=
+export VPC_NAME=
 
 instances_output=$(gcloud compute instances list --format="value(id)")
 
