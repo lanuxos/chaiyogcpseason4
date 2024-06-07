@@ -631,7 +631,59 @@ The persistent data stored in the backend belongs to a workspace. Initially the 
 Certain backends support multiple named workspaces, which allows multiple states to be associated with a single configuration. The configuration still has only one backend, but multiple distinct instances of that configuration can be deployed without configuring a new backend or changing authentication credentials
 
 ### Working with backends
-- 
+- Add a local backend
+touch main.tf
+gcloud config list --format 'value(core.project)'
+
+```
+provider "google" {
+  project     = "# REPLACE WITH YOUR PROJECT ID"
+  region      = "REGION"
+}
+
+resource "google_storage_bucket" "test-bucket-for-state" {
+  name        = "# REPLACE WITH YOUR PROJECT ID"
+  location    = "US"
+  uniform_bucket_level_access = true
+}
+```
+
+Add a local backend to your main.tf file
+```
+terraform {
+  backend "local" {
+    path = "terraform/state/terraform.tfstate"
+  }
+}
+```
+
+terraform init
+terraform apply
+terraform show
+
+- Add a Cloud Storage backend
+main.tf
+```
+terraform {
+  backend "gcs" {
+    bucket  = "# REPLACE WITH YOUR BUCKET NAME"
+    prefix  = "terraform/state"
+  }
+}
+```
+
+terraform init -migrate-state
+
+- Refresh the state
+Return to your storage bucket in the Cloud Console. Select the check box next to the name.
+Click the Labels
+Add Label
+Key 1 = key 
+Value 1 = value
+Save
+
+terraform refresh
+terraform show
 
 ### Import Terraform configuration
 - 
