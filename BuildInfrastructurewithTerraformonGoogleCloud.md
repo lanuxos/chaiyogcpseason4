@@ -686,7 +686,94 @@ terraform refresh
 terraform show
 
 ### Import Terraform configuration
-- 
+- Create a Docker container
+docker run --name hashicorp-learn --detach --publish 8080:80 nginx:latest
+docker ps
+
+- Import the container into Terraform
+git clone https://github.com/hashicorp/learn-terraform-import.git
+cd learn-terraform-import
+terraform init
+
+learn-terraform-import/main.tf
+```
+provider "docker" {
+#   host    = "npipe:////.//pipe//docker_engine"
+}
+```
+
+learn-terraform-import/docker.tf
+```
+resource "docker_container" "web" {}
+```
+
+terraform import docker_container.web $(docker inspect -f {{.ID}} hashicorp-learn)
+
+- Create configuration
+terraform show -no-color > docker.tf
+terraform plan
+
+```
+resource "docker_container" "web" {
+    image = "sha256:87a94228f133e2da99cb16d653cd1373c5b4e8689956386c1c12b60a20421a02"
+    name  = "hashicorp-learn"
+    ports {
+        external = 8080
+        internal = 80
+        ip       = "0.0.0.0"
+        protocol = "tcp"
+    }
+}
+```
+
+- Create image resource
+docker image inspect  -f {{.RepoTags}}
+
+docker.tf
+```
+resource "docker_image" "nginx" {
+  name         = "nginx:latest"
+}
+```
+
+terraform apply
+
+```
+resource "docker_container" "web" {
+    image = docker_image.nginx.image_id
+    name  = "hashicorp-learn"
+    ports {
+        external = 8080
+        internal = 80
+        ip       = "0.0.0.0"
+        protocol = "tcp"
+    }
+}
+```
+
+terraform apply
+
+- Manage the container with Terraform
+docker.tf [change 8080 to 8081]
+```
+resource "docker_container" "web" {
+  name  = "hashicorp-learn"
+  image = docker_image.nginx.image_id
+
+  ports {
+    external = 8081
+    internal = 80
+    ip       = "0.0.0.0"
+    protocol = "tcp"
+  }
+}
+```
+
+terraform apply
+
+- Destroy infrastructure
+terraform destroy
+docker ps --filter "name=hashicorp-learn"
 
 ### Limitations and other considerations
 - 
@@ -700,31 +787,8 @@ For this project, you will use Terraform to create, deploy, and keep track of in
 
 In this lab, you will use Terraform to import and create multiple VM instances, a VPC network with two subnetworks, and a firewall rule for the VPC to allow connections between the two instances. You will also create a Cloud Storage bucket to host your remote backend.
 
-### Create the configuration files
-- 
-
-### Import infrastructure
-- 
-
-### Configure a remote backend
-- 
-
-### Modify and update infrastructure
-- 
-
-### Destroy resources
-- 
-
-### Use a module from the Registry
-- 
-
-### Configure a firewall
-- 
-
-
-
-
 [SOLUTION](https://github.com/quiccklabs/Labs_solutions/blob/6919838bdee340ac97f3d308d341758c1468806e/Build%20Infrastructure%20with%20Terraform%20on%20Google%20Cloud%20Challenge%20Lab/quicklab345.sh)
+- environment
 
 gcloud auth list
 
@@ -734,32 +798,28 @@ export PROJECT_ID=$DEVSHELL_PROJECT_ID
 
 instances_output=$(gcloud compute instances list --format="value(id)")
 
-# Read instance IDs into variables
+- Read instance IDs into variables
 IFS=$'\n' read -r -d '' instance_id_1 instance_id_2 <<< "$instances_output"
 
-# Output instance IDs with custom name
+- Output instance IDs with custom name
 
 export INSTANCE_ID_1=$instance_id_1
 
 export INSTANCE_ID_2=$instance_id_2
 
-
+### Create the configuration files
 touch main.tf
 touch variables.tf
 mkdir modules
 cd modules
 mkdir instances
 cd instances
-touch instances.tf
-touch outputs.tf
-touch variables.tf
+touch instances.tf outputs.tf variables.tf
 cd ..
 mkdir storage
 cd storage
-touch storage.tf
-touch outputs.tf
-touch variables.tf
-cd
+touch storage.tf outputs.tf variables.tf
+cd ~
 
 
 cat > variables.tf <<EOF
@@ -855,7 +915,7 @@ EOF
 
 cd ~
 
-
+### Import infrastructure
 terraform import module.instances.google_compute_instance.tf-instance-1 $INSTANCE_ID_1
 terraform import module.instances.google_compute_instance.tf-instance-2 $INSTANCE_ID_2
 
@@ -909,6 +969,8 @@ EOF
 terraform init
 terraform apply --auto-approve
 
+### Configure a remote backend 
+
 cat > main.tf <<EOF
 
 terraform {
@@ -945,7 +1007,7 @@ EOF
 
 echo "yes" | terraform init
 
-
+### Modify and update infrastructure 
 
 cd modules/instances/
 
@@ -1025,6 +1087,8 @@ terraform apply --auto-approve
 
 cd modules/instances/
 
+### Destroy resources 
+
 cat > instances.tf <<EOF
 
 resource "google_compute_instance" "tf-instance-1" {
@@ -1072,8 +1136,8 @@ cd ~
 
 terraform apply --auto-approve
 
+### Use a module from the Registry 
 
-+++
 cat > main.tf <<EOF
 
 terraform {
@@ -1216,6 +1280,7 @@ cd ~
 terraform init
 terraform apply --auto-approve
 
+### Configure firewall
 
 cat > main.tf <<EOF
 
