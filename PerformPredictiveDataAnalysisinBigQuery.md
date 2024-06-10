@@ -649,8 +649,18 @@ ORDER BY
 Challenge scenario
 Use BigQuery to load the data from the Cloud Storage bucket, write and execute queries in BigQuery, analyze soccer event data. Then use BigQuery ML to train an expected goals model on the soccer event data and evaluate the impressiveness of World Cup goals.
 ### Data Ingestion
-- 
-
+- load json
+Source	                                Cloud Storage
+Select file from Cloud Storage bucket	spls/bq-soccer-analytics/events.json
+File format	                            JSONL (Newline delimited JSON)
+Table name	                            Table name
+Schema	                                Check the box marked Schema Auto detect
+- load csv
+Source	                                Cloud Storage
+Select file from Cloud Storage bucket	spls/bq-soccer-analytics/tags2name.csv
+File format	                            CSV
+Table name	                            Table name
+Schema	                                Check the box marked Auto detect
 ### Analyze soccer data
 - 
 
