@@ -297,8 +297,41 @@ You are just starting your junior machine learning engineer role. So far you hav
 
 You are expected to have the skills and knowledge for these tasks.
 ### Verify your resources
+- create API key
+- export API on environment
+- make object publicly
 
 ### Create Request.json file
-
+request.json
+```
+{
+  "requests": [
+      {
+        "image": {
+          "source": {
+              "gcsImageUri": "gs://qwiklabs-gcp-00-57104c2fd613-bucket/manif-des-sans-papiers.jpg"
+          }
+        },
+        "features": [
+          {
+            "type": ""
+            "maxResults": 10
+          }
+        ]
+      }
+  ]
+}
+```
 ### Update the json file
+1. TEXT_DETECTION
+2. curl, save output and upload output to cloud storage
 
+curl -s -X POST -H "Content-Type: application/json" --data-binary @request.json  https://vision.googleapis.com/v1/images:annotate?key=${API_KEY} -o text-response.json
+
+gsutil cp text-response.json gs://qwiklabs-gcp-00-57104c2fd613-bucket/
+
+3. LANDMARK_DETECTION
+4. curl, save output and upload output to cloud storage
+curl -s -X POST -H "Content-Type: application/json" --data-binary @request.json  https://vision.googleapis.com/v1/images:annotate?key=${API_KEY} -o landmark-response.json
+
+gsutil cp landmark-response.json gs://qwiklabs-gcp-00-57104c2fd613-bucket/
