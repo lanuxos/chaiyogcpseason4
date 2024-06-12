@@ -51,7 +51,7 @@ Google OAuth 2.0
 API key
 Execute
 
-## Extract, Analyze, and Translate Text from Images with the Cloud ML APIs
+## Extract, Analyze, and Translate Text from Images with the Cloud ML APIs [GSP075]
 ### Create an API key
 APIs & Services
 Credentials
@@ -136,8 +136,169 @@ STR=$(jq .data.translations[0].translatedText  translation-response.json) && STR
 curl "https://language.googleapis.com/v1/documents:analyzeEntities?key=${API_KEY}" \
   -s -X POST -H "Content-Type: application/json" --data-binary @nl-request.json
 
-## Detect Labels, Faces, and Landmarks in Images with the Cloud Vision API
-### 
+## Detect Labels, Faces, and Landmarks in Images with the Cloud Vision API [GSP037]
+### Create an API key
+APIs & Services
+Credentials
+Create Credentials
+API key
+Close
 
-## Analyze Images with the Cloud Vision API: Challenge Lab
-### 
+### Upload an image to a Cloud Storage bucket
+Cloud Storage
+Buckets
+Create
+BUCKET_NAME
+Choose how to control access to objects
+uncheck Enforce public access prevention on this bucket
+Fine-grained
+Create
+
+upload image
+edit access [three dots]
+Public
+allUsers
+Reader
+Save
+
+### Create your request
+request.json
+```
+{
+  "requests": [
+      {
+        "image": {
+          "source": {
+              "gcsImageUri": "gs://my-bucket-name/donuts.png"
+          }
+        },
+        "features": [
+          {
+            "type": "LABEL_DETECTION",
+            "maxResults": 10
+          }
+        ]
+      }
+  ]
+}
+```
+
+### Label detection
+curl -s -X POST -H "Content-Type: application/json" --data-binary @request.json  https://vision.googleapis.com/v1/images:annotate?key=${API_KEY}
+
+### Web detection
+request.json
+```
+{
+  "requests": [
+      {
+        "image": {
+          "source": {
+              "gcsImageUri": "gs://my-bucket-name/donuts.png"
+          }
+        },
+        "features": [
+          {
+            "type": "WEB_DETECTION",
+            "maxResults": 10
+          }
+        ]
+      }
+  ]
+}
+```
+
+- call web detection api
+curl -s -X POST -H "Content-Type: application/json" --data-binary @request.json  https://vision.googleapis.com/v1/images:annotate?key=${API_KEY}
+
+### Face detection
+upload image
+
+request.json
+```
+{
+  "requests": [
+      {
+        "image": {
+          "source": {
+              "gcsImageUri": "gs://my-bucket-name/selfie.png"
+          }
+        },
+        "features": [
+          {
+            "type": "FACE_DETECTION"
+          },
+          {
+            "type": "LANDMARK_DETECTION"
+          }
+        ]
+      }
+  ]
+}
+```
+
+- call face detection api
+curl -s -X POST -H "Content-Type: application/json" --data-binary @request.json  https://vision.googleapis.com/v1/images:annotate?key=${API_KEY}
+
+### Landmark annotation
+upload image
+request.json
+```
+{
+  "requests": [
+      {
+        "image": {
+          "source": {
+              "gcsImageUri": "gs://my-bucket-name/city.png"
+          }
+        },
+        "features": [
+          {
+            "type": "LANDMARK_DETECTION",
+            "maxResults": 10
+          }
+        ]
+      }
+  ]
+}
+```
+- call landmark detection api
+curl -s -X POST -H "Content-Type: application/json" --data-binary @request.json  https://vision.googleapis.com/v1/images:annotate?key=${API_KEY}
+
+### Object localization
+request.json
+```
+{
+  "requests": [
+    {
+      "image": {
+        "source": {
+          "imageUri": "https://cloud.google.com/vision/docs/images/bicycle_example.png"
+        }
+      },
+      "features": [
+        {
+          "maxResults": 10,
+          "type": "OBJECT_LOCALIZATION"
+        }
+      ]
+    }
+  ]
+}
+```
+- calling the vision api and parsing the response
+curl -s -X POST -H "Content-Type: application/json" --data-binary @request.json  https://vision.googleapis.com/v1/images:annotate?key=${API_KEY}
+
+### Explore other Vision API methods
+
+## Analyze Images with the Cloud Vision API: Challenge Lab [ARC122]
+Challenge scenario
+You are just starting your junior machine learning engineer role. So far you have been helping teams train models, and you're learning how to use Google Cloud Machine Learning APIs.
+
+You are expected to have the skills and knowledge for these tasks.
+### Verify your resources
+
+### Create Request.json file
+
+### Update the json file
+
