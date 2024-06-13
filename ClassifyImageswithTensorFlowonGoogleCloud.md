@@ -494,11 +494,22 @@ t_image_batch, t_labels_batch = next(iter(ds_test))
 up_logger.info("training images max " + str(np.max(image_batch[0])))
 up_logger.info("test images max " + str(np.max(t_image_batch[0])))
 ```
-## Introduction to Convolutions with TensorFlow []
-### 
+## Introduction to Convolutions with TensorFlow [GSP632]
+### Open Vertex Notebook instance
+Vertex AI
+Workbench
+User-managed-notebooks
 
-## Classify Images with TensorFlow Convolutional Neural Networks []
-### 
+### Navigate to lab notebook
+CLS_Vertex_AI_Intro_to_CNN.ipynb
+
+## Classify Images with TensorFlow Convolutional Neural Networks [GSP633]
+### Enable Google Cloud services
+
+### Open Vertex Notebook instance
+
+### Navigate to lab notebook
+
 
 ## Identify Horses or Humans with TensorFlow and Vertex AI []
 ### 
