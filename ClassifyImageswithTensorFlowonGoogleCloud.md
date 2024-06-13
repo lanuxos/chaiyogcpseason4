@@ -501,15 +501,28 @@ Workbench
 User-managed-notebooks
 
 ### Navigate to lab notebook
+training-data-analyst/self-paced-labs/learning-tensorflow/
 CLS_Vertex_AI_Intro_to_CNN.ipynb
 
 ## Classify Images with TensorFlow Convolutional Neural Networks [GSP633]
 ### Enable Google Cloud services
+gcloud services enable \
+  compute.googleapis.com \
+  monitoring.googleapis.com \
+  logging.googleapis.com \
+  notebooks.googleapis.com \
+  aiplatform.googleapis.com \
+  artifactregistry.googleapis.com \
+  container.googleapis.com
 
 ### Open Vertex Notebook instance
+Vertex AI
+Workbench
+User-managed-notebooks
 
 ### Navigate to lab notebook
-
+training-data-analyst/self-paced-labs/learning-tensorflow/convolutional-neural-networks/
+CLS_Vertex_AI_CNN_fmnist.ipynb
 
 ## Identify Horses or Humans with TensorFlow and Vertex AI []
 ### 
