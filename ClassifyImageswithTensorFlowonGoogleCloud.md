@@ -281,6 +281,219 @@ model.compile(optimizer = tf.keras.optimizers.Adam(),
 model.fit(ds_train, epochs=5, callbacks=[callbacks])
 ```
 
+### Exercise 1
+explore the layers in your model. What happens when you change the number of neurons? 64 -> 128
+update_model.py
+```
+# Import and configure logging
+import logging
+import google.cloud.logging as cloud_logging
+from google.cloud.logging.handlers import CloudLoggingHandler
+from google.cloud.logging_v2.handlers import setup_logging
+up_logger = logging.getLogger('upLogger')
+up_logger.setLevel(logging.INFO)
+up_logger.addHandler(CloudLoggingHandler(cloud_logging.Client(), name="updated"))
+
+# Import tensorflow_datasets
+import tensorflow_datasets as tfds
+# Import numpy
+import numpy as np
+# Import TensorFlow
+import tensorflow as tf
+
+# Define, load and configure data
+(ds_train, ds_test), info = tfds.load('fashion_mnist', split=['train', 'test'], with_info=True, as_supervised=True)
+# Define batch size
+BATCH_SIZE = 32
+# Normalizing and batch processing of data
+ds_train = ds_train.map(lambda x, y: (tf.cast(x, tf.float32)/255.0, y)).batch(BATCH_SIZE)
+ds_test = ds_test.map(lambda x, y: (tf.cast(x, tf.float32)/255.0, y)).batch(BATCH_SIZE)
+# Define the model
+model = tf.keras.models.Sequential([tf.keras.layers.Flatten(),
+                                    tf.keras.layers.Dense(128, activation=tf.nn.relu),
+                                    tf.keras.layers.Dense(10, activation=tf.nn.softmax)])
+# Compile data
+model.compile(optimizer = tf.keras.optimizers.Adam(),
+              loss = tf.keras.losses.SparseCategoricalCrossentropy(),
+              metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
+model.fit(ds_train, epochs=5)
+# Logs model summary
+model.summary(print_fn=up_logger.info)
+```
+### Exercise 2
+Consider the effects of additional layers in the network. What will happen if you add another layer between the two dense layers?
+update_model.py
+```
+# Import and configure logging
+import logging
+import google.cloud.logging as cloud_logging
+from google.cloud.logging.handlers import CloudLoggingHandler
+from google.cloud.logging_v2.handlers import setup_logging
+up_logger = logging.getLogger('upLogger')
+up_logger.setLevel(logging.INFO)
+up_logger.addHandler(CloudLoggingHandler(cloud_logging.Client(), name="updated"))
+
+# Import tensorflow_datasets
+import tensorflow_datasets as tfds
+# Import numpy
+import numpy as np
+# Import TensorFlow
+import tensorflow as tf
+
+# Define, load and configure data
+(ds_train, ds_test), info = tfds.load('fashion_mnist', split=['train', 'test'], with_info=True, as_supervised=True)
+# Define batch size
+BATCH_SIZE = 32
+# Normalizing and batch processing of data
+ds_train = ds_train.map(lambda x, y: (tf.cast(x, tf.float32)/255.0, y)).batch(BATCH_SIZE)
+ds_test = ds_test.map(lambda x, y: (tf.cast(x, tf.float32)/255.0, y)).batch(BATCH_SIZE)
+# Define the model
+model = tf.keras.models.Sequential([tf.keras.layers.Flatten(),
+                                    tf.keras.layers.Dense(64, activation=tf.nn.relu),
+                                    tf.keras.layers.Dense(64, activation=tf.nn.relu),
+                                    tf.keras.layers.Dense(10, activation=tf.nn.softmax)])
+# Compile data
+model.compile(optimizer = tf.keras.optimizers.Adam(),
+              loss = tf.keras.losses.SparseCategoricalCrossentropy(),
+              metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
+model.fit(ds_train, epochs=5)
+# Logs model summary
+model.summary(print_fn=up_logger.info)
+```
+### Exercise 3
+update_model.py
+```
+# Import and configure logging
+import logging
+import google.cloud.logging as cloud_logging
+from google.cloud.logging.handlers import CloudLoggingHandler
+from google.cloud.logging_v2.handlers import setup_logging
+up_logger = logging.getLogger('upLogger')
+up_logger.setLevel(logging.INFO)
+up_logger.addHandler(CloudLoggingHandler(cloud_logging.Client(), name="updated"))
+
+# Import tensorflow_datasets
+import tensorflow_datasets as tfds
+# Import numpy
+import numpy as np
+# Import TensorFlow
+import tensorflow as tf
+
+# Define, load and configure data
+(ds_train, ds_test), info = tfds.load('fashion_mnist', split=['train', 'test'], with_info=True, as_supervised=True)
+# Define batch size
+BATCH_SIZE = 32
+# Normalizing and batch processing of data
+ds_train = ds_train.batch(BATCH_SIZE)
+ds_test = ds_test.batch(BATCH_SIZE)
+# Define the model
+model = tf.keras.models.Sequential([tf.keras.layers.Flatten(),
+                                    tf.keras.layers.Dense(64, activation=tf.nn.relu),
+                                    tf.keras.layers.Dense(10, activation=tf.nn.softmax)])
+# Compile data
+model.compile(optimizer = tf.keras.optimizers.Adam(),
+              loss = tf.keras.losses.SparseCategoricalCrossentropy(),
+              metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
+model.fit(ds_train, epochs=5)
+# Logs model summary
+model.summary(print_fn=up_logger.info)
+
+# Print out max value to see the changes
+image_batch, labels_batch = next(iter(ds_train))
+t_image_batch, t_labels_batch = next(iter(ds_test))
+up_logger.info("training images max " + str(np.max(image_batch[0])))
+up_logger.info("test images max " + str(np.max(t_image_batch[0])))
+```
+### Exercise 4
+What happens if you remove the Flatten() layer, and why?
+update_model.py
+```
+# Import and configure logging
+import logging
+import google.cloud.logging as cloud_logging
+from google.cloud.logging.handlers import CloudLoggingHandler
+from google.cloud.logging_v2.handlers import setup_logging
+up_logger = logging.getLogger('upLogger')
+up_logger.setLevel(logging.INFO)
+up_logger.addHandler(CloudLoggingHandler(cloud_logging.Client(), name="updated"))
+
+# Import tensorflow_datasets
+import tensorflow_datasets as tfds
+# Import numpy
+import numpy as np
+# Import TensorFlow
+import tensorflow as tf
+
+# Define, load and configure data
+(ds_train, ds_test), info = tfds.load('fashion_mnist', split=['train', 'test'], with_info=True, as_supervised=True)
+# Define batch size
+BATCH_SIZE = 32
+# Normalizing and batch processing of data
+ds_train = ds_train.batch(BATCH_SIZE)
+ds_test = ds_test.batch(BATCH_SIZE)
+# Define the model
+# Define the model
+model = tf.keras.models.Sequential([tf.keras.layers.Dense(64, activation=tf.nn.relu),
+                                    tf.keras.layers.Dense(10, activation=tf.nn.softmax)])
+# Compile data
+model.compile(optimizer = tf.keras.optimizers.Adam(),
+              loss = tf.keras.losses.SparseCategoricalCrossentropy(),
+              metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
+model.fit(ds_train, epochs=5)
+# Logs model summary
+model.summary(print_fn=up_logger.info)
+
+# Print out max value to see the changes
+image_batch, labels_batch = next(iter(ds_train))
+t_image_batch, t_labels_batch = next(iter(ds_test))
+up_logger.info("training images max " + str(np.max(image_batch[0])))
+up_logger.info("test images max " + str(np.max(t_image_batch[0])))
+```
+### Exercise 5
+Notice the final (output) layer. Why are there 10 neurons in the final layer? What happens if you have a different number than 10?
+update_model.py
+```
+# Import and configure logging
+import logging
+import google.cloud.logging as cloud_logging
+from google.cloud.logging.handlers import CloudLoggingHandler
+from google.cloud.logging_v2.handlers import setup_logging
+up_logger = logging.getLogger('upLogger')
+up_logger.setLevel(logging.INFO)
+up_logger.addHandler(CloudLoggingHandler(cloud_logging.Client(), name="updated"))
+
+# Import tensorflow_datasets
+import tensorflow_datasets as tfds
+# Import numpy
+import numpy as np
+# Import TensorFlow
+import tensorflow as tf
+
+# Define, load and configure data
+(ds_train, ds_test), info = tfds.load('fashion_mnist', split=['train', 'test'], with_info=True, as_supervised=True)
+# Define batch size
+BATCH_SIZE = 32
+# Normalizing and batch processing of data
+ds_train = ds_train.batch(BATCH_SIZE)
+ds_test = ds_test.batch(BATCH_SIZE)
+# Define the model
+# Define the model
+model = tf.keras.models.Sequential([tf.keras.layers.Dense(64, activation=tf.nn.relu),
+                                    tf.keras.layers.Dense(10, activation=tf.nn.softmax)])
+# Compile data
+model.compile(optimizer = tf.keras.optimizers.Adam(),
+              loss = tf.keras.losses.SparseCategoricalCrossentropy(),
+              metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
+model.fit(ds_train, epochs=5)
+# Logs model summary
+model.summary(print_fn=up_logger.info)
+
+# Print out max value to see the changes
+image_batch, labels_batch = next(iter(ds_train))
+t_image_batch, t_labels_batch = next(iter(ds_test))
+up_logger.info("training images max " + str(np.max(image_batch[0])))
+up_logger.info("test images max " + str(np.max(t_image_batch[0])))
+```
 ## Introduction to Convolutions with TensorFlow []
 ### 
 
