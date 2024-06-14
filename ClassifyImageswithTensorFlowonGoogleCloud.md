@@ -546,5 +546,47 @@ CLS_Vertex_AI_CNN_horse_or_human.ipynb
 
 
 
-## Classify Images with TensorFlow on Google Cloud: Challenge Lab []
-### 
+## Classify Images with TensorFlow on Google Cloud: Challenge Lab [GSP398]
+### Enable google cloud service
+gcloud services enable \
+  compute.googleapis.com \
+  monitoring.googleapis.com \
+  logging.googleapis.com \
+  notebooks.googleapis.com \
+  aiplatform.googleapis.com \
+  artifactregistry.googleapis.com \
+  container.googleapis.com
+
+### Challenge scenario
+You were recently hired as a Machine Learning Engineer for an Optical Character Recognition app development team. Your manager has tasked you with building a machine learning model to recognize Hiragana alphabets. The challenge: your business requirements are that you have just 6 weeks to produce a model that achieves greater than 90% accuracy to improve upon an existing bootstrapped solution. Furthermore, after doing some exploratory analysis in your startup's data warehouse, you found that you only have a small dataset of 60k images of alphabets to build a higher-performing solution.
+
+To build and deploy a high-performance machine learning model with limited data quickly, you will walk through training and deploying a CNN classifier for online predictions on Google Cloud's Vertex AI platform. Vertex AI is Google Cloud's next-generation machine learning development platform where you can leverage the latest ML pre-built components to significantly enhance your development productivity, scale your workflow and decision-making with your data, and accelerate time to value.
+
+cnn-challenge-lab.png
+
+First, you will progress through a typical experimentation workflow where you will write a script that trains your custom CNN model using tf.keras classification layers. You will then send the model code to a custom training job and run the custom training job using pre-built Docker containers provided by Vertex AI to run training and prediction. Lastly, you will deploy the model to an endpoint so that you can use your model for predictions.
+
+### Create a Vertex Notebooks instance
+Vertex AI 
+Workbench 
+User-Managed Notebooks
+Create a Notebook instance
+TensorFlow Enterprise 2.11 Without GPUs
+Name your notebook cnn-challenge
+
+### Download the Challenge Notebook
+git clone https://github.com/GoogleCloudPlatform/training-data-analyst
+
+training-data-analyst/self-paced-labs/learning-tensorflow/cnn-challenge-lab/cnn-challenge-lab.ipynb
+
+### Create a training script
+
+
+### Train the model
+
+
+### Deploy the model to a Vertex Online Prediction Endpoint
+
+
+### Query deployed model on Vertex Online Prediction Endpoint
+
