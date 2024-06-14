@@ -524,8 +524,27 @@ User-managed-notebooks
 training-data-analyst/self-paced-labs/learning-tensorflow/convolutional-neural-networks/
 CLS_Vertex_AI_CNN_fmnist.ipynb
 
-## Identify Horses or Humans with TensorFlow and Vertex AI []
-### 
+## Identify Horses or Humans with TensorFlow and Vertex AI [GSP634]
+### Enable Google Cloud services
+gcloud services enable \
+  compute.googleapis.com \
+  monitoring.googleapis.com \
+  logging.googleapis.com \
+  notebooks.googleapis.com \
+  aiplatform.googleapis.com \
+  artifactregistry.googleapis.com \
+  container.googleapis.com
+
+### Deploy Vertex Notebook instance
+Vertex AI
+Workbench
+User-managed-notebooks
+
+### Navigate to lab notebook
+training-data-analyst/self-paced-labs/learning-tensorflow/convolutions-with-complex-images/
+CLS_Vertex_AI_CNN_horse_or_human.ipynb
+
+
 
 ## Classify Images with TensorFlow on Google Cloud: Challenge Lab []
 ### 
