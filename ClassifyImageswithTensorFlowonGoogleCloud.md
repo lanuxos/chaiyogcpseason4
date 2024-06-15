@@ -889,9 +889,511 @@ User-managed-notebooks
 
 ### Navigate to lab notebook
 training-data-analyst/self-paced-labs/learning-tensorflow/convolutions-with-complex-images/
-CLS_Vertex_AI_CNN_horse_or_human.ipynb
+[CLS_Vertex_AI_CNN_horse_or_human.ipynb](https://github.com/GoogleCloudPlatform/training-data-analyst/blob/master/self-paced-labs/learning-tensorflow/convolutions-with-complex-images/CLS_Vertex_AI_CNN_horse_or_human.ipynb)
+
+This tutorial demonstrates how to
+
+Train a CNN model on Vertex AI using the SDK for Python
+Deploy a custom image classification model for online prediction using Vertex AI
+Dataset
+You will train a neural network to classify images from a dataset called [Horses or Humans](https://www.tensorflow.org/datasets/catalog/horses_or_humans).
+
+Objective
+In this notebook, you will create a custom-trained CNN model from a Python script in a Docker container using the Vertex SDK for Python, and then do a prediction on the deployed model by sending data. Alternatively, you can create custom-trained models using gcloud command-line tool, or online using the Cloud Console.
+
+The steps performed include:
+
+Create a Vertex AI custom job and train a CNN model.
+Deploy the Model resource to a serving Endpoint resource.
+Make a prediction.
+Undeploy the Model resource.
+
+- Setting up the environment [installation]
+```
+!pip install --user google-cloud-aiplatform 
+!pip install --user tensorflow-text 
+!pip install --user tensorflow-datasets
+
+!pip install --user protobuf==3.20.1
+```
+- Restart the kernel
+```
+import os
+
+if not os.getenv("IS_TESTING"):
+    # Automatically restart kernel after installs
+    import IPython
+
+    app = IPython.Application.instance()
+    app.kernel.do_shutdown(True)
+```
+- Set your project ID
+```
+import os
+
+PROJECT_ID = ""
+
+if not os.getenv("IS_TESTING"):
+    # Get your Google Cloud project ID from gcloud
+    shell_output=!gcloud config list --format 'value(core.project)' 2>/dev/null
+    PROJECT_ID = shell_output[0]
+    print("Project ID: ", PROJECT_ID)
+```
+- Timestamp
+```
+from datetime import datetime
+
+TIMESTAMP = datetime.now().strftime("%Y%m%d%H%M%S")
+```
+- Create a Cloud Storage bucket
+```
+BUCKET_NAME = "gs://[your-bucket-name]"
+REGION = "us-central1"  # @param {type:"string"}
+```
+
+```
+PROJECT_ID
+```
+
+```
+if BUCKET_NAME == "" or BUCKET_NAME is None or BUCKET_NAME == "gs://[your-bucket-name]":
+    BUCKET_NAME = "gs://" + PROJECT_ID
+```
+
+```
+BUCKET_NAME
+```
+
+```
+gsutil mb -l $REGION $BUCKET_NAME
+```
+- Import Vertex SDK for Python
+```
+import os
+import sys
+
+from google.cloud import aiplatform
+from google.cloud.aiplatform import gapic as aip
+
+aiplatform.init(project=PROJECT_ID, location=REGION, staging_bucket=BUCKET_NAME)
+```
+- Set hardware accelerators
+```
+TRAIN_GPU, TRAIN_NGPU = (None, None)
+DEPLOY_GPU, DEPLOY_NGPU = (None, None)
+```
+- Set pre-built containers
+```
+TRAIN_VERSION = "tf-cpu.2-8"
+DEPLOY_VERSION = "tf2-cpu.2-8"
+
+TRAIN_IMAGE = "us-docker.pkg.dev/vertex-ai/training/{}:latest".format(TRAIN_VERSION)
+DEPLOY_IMAGE = "us-docker.pkg.dev/vertex-ai/prediction/{}:latest".format(DEPLOY_VERSION)
+
+print("Training:", TRAIN_IMAGE, TRAIN_GPU, TRAIN_NGPU)
+print("Deployment:", DEPLOY_IMAGE, DEPLOY_GPU, DEPLOY_NGPU)
+```
+- Set machine types
+```
+MACHINE_TYPE = "e2-standard"
+
+VCPU = "4"
+TRAIN_COMPUTE = MACHINE_TYPE + "-" + VCPU
+print("Train machine type", TRAIN_COMPUTE)
+
+MACHINE_TYPE = "e2-standard"
+
+VCPU = "4"
+DEPLOY_COMPUTE = MACHINE_TYPE + "-" + VCPU
+print("Deploy machine type", DEPLOY_COMPUTE)
+```
+- Design and Train the Convolutional Neural Network[Training script]
+```
+%%writefile task.py
+# Training Horses vs Humans using CNN
+
+import tensorflow_datasets as tfds
+import tensorflow as tf
+from tensorflow.python.client import device_lib
+import argparse
+import os
+import sys
+tfds.disable_progress_bar()
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--epochs', dest='epochs',
+                    default=10, type=int,
+                    help='Number of epochs.')
+
+args = parser.parse_args()
+
+print('Python Version = {}'.format(sys.version))
+print('TensorFlow Version = {}'.format(tf.__version__))
+print('TF_CONFIG = {}'.format(os.environ.get('TF_CONFIG', 'Not found')))
+print('DEVICES', device_lib.list_local_devices())
+
+# Define batch size
+BATCH_SIZE = 32
+
+# Load the dataset
+datasets, info = tfds.load('horses_or_humans', with_info=True, as_supervised=True)
+
+# Normalize and batch process the dataset
+ds_train = datasets['train'].map(lambda x, y: (tf.cast(x, tf.float32)/255.0, y)).batch(BATCH_SIZE)
 
 
+# Build the Convolutional Neural Network
+model = tf.keras.models.Sequential([
+    # Note the input shape is the desired size of the image 300x300 with 3 bytes color
+    tf.keras.layers.Conv2D(16, (3,3), activation='relu', input_shape=(300, 300, 3)),
+    tf.keras.layers.MaxPooling2D(2, 2),
+    tf.keras.layers.Conv2D(32, (3,3), activation='relu'),
+    tf.keras.layers.MaxPooling2D(2,2),
+    tf.keras.layers.Conv2D(64, (3,3), activation='relu'),
+    tf.keras.layers.MaxPooling2D(2,2),
+    tf.keras.layers.Conv2D(64, (3,3), activation='relu'),
+    tf.keras.layers.MaxPooling2D(2,2),
+    tf.keras.layers.Conv2D(64, (3,3), activation='relu'),
+    tf.keras.layers.MaxPooling2D(2,2),
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(512, activation='relu'),
+    # Only 1 output neuron. It will contain a value from 0-1 where 0 for 1 class ('horses') and 1 for the other ('humans')
+    tf.keras.layers.Dense(1, activation='sigmoid')
+])
+
+model.compile(optimizer = tf.keras.optimizers.RMSprop(),
+      loss = tf.keras.losses.BinaryCrossentropy(),
+      metrics=[tf.keras.metrics.BinaryAccuracy()])
+
+
+
+# Train and save the model
+MODEL_DIR = os.getenv("AIP_MODEL_DIR")
+
+model.fit(ds_train, epochs=args.epochs)
+model.save(MODEL_DIR)
+```
+- Define the command args for the training script
+```
+JOB_NAME = "custom_job_" + TIMESTAMP
+MODEL_DIR = "{}/{}".format(BUCKET_NAME, JOB_NAME)
+
+EPOCHS = 8
+
+CMDARGS = [
+    "--epochs=" + str(EPOCHS),
+]
+```
+- Train the model
+```
+job = aiplatform.CustomTrainingJob(
+    display_name=JOB_NAME,
+    script_path="task.py",
+    container_uri=TRAIN_IMAGE,
+    requirements=["tensorflow_datasets==4.6.0"],
+    model_serving_container_image_uri=DEPLOY_IMAGE,
+)
+
+MODEL_DISPLAY_NAME = "horsesvshumans-" + TIMESTAMP
+
+# Start the training
+if TRAIN_GPU:
+    model = job.run(
+        model_display_name=MODEL_DISPLAY_NAME,
+        args=CMDARGS,
+        replica_count=1,
+        machine_type=TRAIN_COMPUTE,
+        accelerator_type=TRAIN_GPU.name,
+        accelerator_count=TRAIN_NGPU,
+    )
+else:
+    model = job.run(
+        model_display_name=MODEL_DISPLAY_NAME,
+        args=CMDARGS,
+        replica_count=1,
+        machine_type=TRAIN_COMPUTE,
+        accelerator_count=0,
+    )
+```
+- Testing
+```
+import tensorflow_datasets as tfds
+import numpy as np
+
+tfds.disable_progress_bar()
+```
+
+```
+datasets, info = tfds.load('horses_or_humans', batch_size=-1, with_info=True, as_supervised=True)
+
+test_dataset = datasets['test']
+```
+
+```
+x_test, y_test = tfds.as_numpy(test_dataset)
+
+# Normalize (rescale) the pixel data by dividing each pixel by 255. 
+x_test = x_test.astype('float32') / 255.
+```
+
+```
+x_test.shape, y_test.shape
+```
+
+```
+#@title Pick the number of test images
+NUM_TEST_IMAGES = 20 #@param {type:"slider", min:1, max:20, step:1}
+x_test, y_test = x_test[:NUM_TEST_IMAGES], y_test[:NUM_TEST_IMAGES]
+```
+
+```
+# Convert to python list
+list_x_test = x_test.tolist()
+```
+- Batch prediction request
+```
+import json
+
+PUBLIC_BUCKET_NAME = 'gs://spls'
+PUBLIC_DESTINATION_FOLDER = 'gsp634'
+
+RESULTS_DIRECTORY = "prediction_results"
+
+# Create destination directory for downloaded results.
+os.makedirs(RESULTS_DIRECTORY, exist_ok=True)
+
+BATCH_PREDICTION_GCS_DEST_PREFIX = PUBLIC_BUCKET_NAME + "/" + PUBLIC_DESTINATION_FOLDER
+
+# Download the results.
+! gsutil -m cp -r $BATCH_PREDICTION_GCS_DEST_PREFIX $RESULTS_DIRECTORY
+
+# Store the downloaded prediction file paths into a list
+results_files = []
+for dirpath, subdirs, files in os.walk(RESULTS_DIRECTORY):
+    for file in files:
+        if file.startswith("prediction.results"):
+            results_files.append(os.path.join(dirpath, file))
+
+            
+def consolidate_results():          
+    # Consolidate all the results into a list
+    results = []
+    for results_file in results_files:
+        # Download each result
+        with open(results_file, "r") as file:
+            results.extend([json.loads(line) for line in file.readlines()])
+    return results
+
+results = consolidate_results()
+```
+- Rearrange the Batch prediction result
+```
+def rearrange_results():
+    # Empty array to hold the new ordered result
+    new_results = [None]*20
+
+    for result in results:
+        instance_img = np.array(result["instance"])
+        for i in range(len(x_test)):
+            # If the result image and x_test image matches,
+            # then get the index of the image in x_test.
+            # Insert the result into that index
+            # in the new_results array
+            if (instance_img == x_test[i]).all():
+                new_results[i] = result
+    return new_results
+                
+new_results = rearrange_results()
+```
+- Evaluate results
+```
+def evaluate_results():
+    # If the prediction value of result is less than 0.5 then it means model predicted this image to belong to class 0, i.e, horse,
+    # else the model predicted the image to belong to class 1, i.e, human.
+    y_predicted = [0 if result["prediction"][0] <= 0.5 else 1  for result in new_results]
+
+    correct_ = sum(y_predicted == y_test)
+    accuracy = len(y_predicted)
+    print(
+        f"Correct predictions = {correct_}, Total predictions = {accuracy}, Accuracy = {correct_/accuracy}"
+    )
+    return y_predicted
+    
+y_predicted = evaluate_results()
+```
+- Plot the result
+```
+import matplotlib.pyplot as plt
+
+label = {0: 'horse', 1: 'human'}
+
+def display_instance_images(rows=64, cols=4):
+  """Display given images and their labels in a grid."""
+  fig = plt.figure()
+  fig.set_size_inches(cols * 3, rows * 3)
+  count = 0
+  i = 0
+  for result in new_results:
+      plt.subplot(rows, cols, i + 1)
+      plt.axis('off')
+      plt.imshow(result['instance'])
+      plt.title(label[y_predicted[count]])
+      i += 1
+      count += 1
+
+display_instance_images()
+```
+- [Optional] Make a batch prediction request
+```
+if BUCKET_NAME == "" or BUCKET_NAME is None or BUCKET_NAME == "gs://[your-bucket-name]":
+    BUCKET_NAME = "gs://" + PROJECT_ID
+```
+
+```
+import json
+
+BATCH_PREDICTION_INSTANCES_FILE = "batch_prediction_instances.jsonl"
+
+BATCH_PREDICTION_GCS_SOURCE = (
+    BUCKET_NAME + "/batch_prediction_instances/" + BATCH_PREDICTION_INSTANCES_FILE
+)
+
+# Write instances at JSONL
+with open(BATCH_PREDICTION_INSTANCES_FILE, "w") as f:
+    for x in list_x_test:
+        f.write(json.dumps(x) + "\n")
+
+# Upload to Cloud Storage bucket
+! gsutil cp $BATCH_PREDICTION_INSTANCES_FILE $BATCH_PREDICTION_GCS_SOURCE
+
+print("Uploaded instances to: ", BATCH_PREDICTION_GCS_SOURCE)
+```
+- Send the prediction request
+```
+MIN_NODES = 1
+MAX_NODES = 1
+
+# The name of the job
+BATCH_PREDICTION_JOB_NAME = "horsesorhuman_batch-" + TIMESTAMP
+
+# Folder in the bucket to write results to
+DESTINATION_FOLDER = "batch_prediction_results"
+
+# The Cloud Storage bucket to upload results to
+BATCH_PREDICTION_GCS_DEST_PREFIX = BUCKET_NAME + "/" + DESTINATION_FOLDER
+
+# Make SDK batch_predict method call
+batch_prediction_job = model.batch_predict(
+    instances_format="jsonl",
+    predictions_format="jsonl",
+    job_display_name=BATCH_PREDICTION_JOB_NAME,
+    gcs_source=BATCH_PREDICTION_GCS_SOURCE,
+    gcs_destination_prefix=BATCH_PREDICTION_GCS_DEST_PREFIX,
+    model_parameters=None,
+    machine_type=DEPLOY_COMPUTE,
+    accelerator_type=None,
+    accelerator_count=0,
+    starting_replica_count=MIN_NODES,
+    max_replica_count=MAX_NODES,
+    sync=True,
+)
+```
+- Retrieve batch prediction results
+```
+RESULTS_DIRECTORY = "prediction_results"
+RESULTS_DIRECTORY_FULL = RESULTS_DIRECTORY + "/" + DESTINATION_FOLDER
+
+# Create missing directories
+os.makedirs(RESULTS_DIRECTORY, exist_ok=True)
+
+# Get the Cloud Storage paths for each result
+! gsutil -m cp -r $BATCH_PREDICTION_GCS_DEST_PREFIX $RESULTS_DIRECTORY
+
+# Get most recently modified directory
+latest_directory = max(
+    [
+        os.path.join(RESULTS_DIRECTORY_FULL, d)
+        for d in os.listdir(RESULTS_DIRECTORY_FULL)
+    ],
+    key=os.path.getmtime,
+)
+
+# Get downloaded results in directory
+results_files = []
+for dirpath, subdirs, files in os.walk(latest_directory):
+    for file in files:
+        if file.startswith("prediction.results"):
+            results_files.append(os.path.join(dirpath, file))
+
+# Consolidate all the results into a list
+def consolidate_results():          
+    # Consolidate all the results into a list
+    results = []
+    for results_file in results_files:
+        # Download each result
+        with open(results_file, "r") as file:
+            results.extend([json.loads(line) for line in file.readlines()])
+    return results
+results = consolidate_results()
+```
+- Rearrange the Batch prediction result
+```
+# Rearrange results
+def rearrange_results():
+    # Empty array to hold the new ordered result
+    new_results = [None]*20
+
+    for result in results:
+        instance_img = np.array(result["instance"])
+        for i in range(len(x_test)):
+            # If the result image and x_test image matches,
+            # then get the index of the image in x_test.
+            # Insert the result into that index
+            # in the new_results array
+            if (instance_img == x_test[i]).all():
+                new_results[i] = result
+    return new_results
+new_results = rearrange_results()
+```
+- Evaluate results
+```
+# Evaluate results
+def evaluate_results():
+    # If the prediction value of result is less than 0.5 then it means model predicted this image to belong to class 0, i.e, horse,
+    # else the model predicted the image to belong to class 1, i.e, human.
+    y_predicted = [0 if result["prediction"][0] <= 0.5 else 1  for result in new_results]
+
+    correct_ = sum(y_predicted == y_test)
+    accuracy = len(y_predicted)
+    print(
+        f"Correct predictions = {correct_}, Total predictions = {accuracy}, Accuracy = {correct_/accuracy}"
+    )
+    return y_predicted
+y_predicted = evaluate_results()
+```
+- Plot the result
+```
+import matplotlib.pyplot as plt
+
+label = {0: 'horse', 1: 'human'}
+
+def display_instance_images(rows=64, cols=4):
+  """Display given images and their labels in a grid."""
+  fig = plt.figure()
+  fig.set_size_inches(cols * 3, rows * 3)
+  count = 0
+  i = 0
+  for result in new_results:
+      plt.subplot(rows, cols, i + 1)
+      plt.axis('off')
+      plt.imshow(result['instance'])
+      plt.title(label[y_predicted[count]])
+      i += 1
+      count += 1
+
+display_instance_images()
+```
 
 ## Classify Images with TensorFlow on Google Cloud: Challenge Lab [GSP398]
 ### Enable google cloud service
