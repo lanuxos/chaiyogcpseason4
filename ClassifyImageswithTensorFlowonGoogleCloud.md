@@ -1411,8 +1411,6 @@ You were recently hired as a Machine Learning Engineer for an Optical Character 
 
 To build and deploy a high-performance machine learning model with limited data quickly, you will walk through training and deploying a CNN classifier for online predictions on Google Cloud's Vertex AI platform. Vertex AI is Google Cloud's next-generation machine learning development platform where you can leverage the latest ML pre-built components to significantly enhance your development productivity, scale your workflow and decision-making with your data, and accelerate time to value.
 
-cnn-challenge-lab.png
-
 First, you will progress through a typical experimentation workflow where you will write a script that trains your custom CNN model using tf.keras classification layers. You will then send the model code to a custom training job and run the custom training job using pre-built Docker containers provided by Vertex AI to run training and prediction. Lastly, you will deploy the model to an endpoint so that you can use your model for predictions.
 
 ### Create a Vertex Notebooks instance
@@ -1428,14 +1426,283 @@ git clone https://github.com/GoogleCloudPlatform/training-data-analyst
 
 training-data-analyst/self-paced-labs/learning-tensorflow/cnn-challenge-lab/cnn-challenge-lab.ipynb
 
-### Create a training script
+- Installation
 
+```
+import os
+! pip3 install --user --upgrade google-cloud-aiplatform google-cloud-storage google-cloud-logging protobuf==3.19.* pillow numpy
+```
+- restart kernel
+```
+
+import os
+
+if not os.getenv("IS_TESTING"):
+    # Automatically restart kernel after installs
+    import IPython
+
+    app = IPython.Application.instance()
+    app.kernel.do_shutdown(True)
+```
+- set project id
+```
+import os
+
+# Retrieve and set PROJECT_ID environment variables.
+# TODO: fill in PROJECT_ID.
+
+PROJECT_ID = ""
+
+if not os.getenv("IS_TESTING"):
+    # Get your Google Cloud project ID from gcloud
+    shell_output=!gcloud config list --format 'value(core.project)' 2>/dev/null
+    PROJECT_ID = shell_output[0]
+```
+
+```
+PROJECT_ID
+```
+
+```
+from datetime import datetime
+
+TIMESTAMP = datetime.now().strftime("%Y%m%d%H%M%S")
+```
+
+```
+REGION = "us-central1"  # @param {type:"string"}
+BUCKET_NAME = "gs://[your-bucket-name]"
+```
+
+```
+# TODO: Create a globally unique Google Cloud Storage bucket name for artifact storage.
+# HINT: Start the name with gs://
+if BUCKET_NAME == "" or BUCKET_NAME is None or BUCKET_NAME == "gs://[your-bucket-name]":
+    BUCKET_NAME = "gs://" + PROJECT_ID
+    print(BUCKET_NAME)
+```
+- create bucket
+```
+! gsutil mb -l $REGION $BUCKET_NAME
+```
+- Import Vertex SDK for Python
+```
+import os
+import sys
+
+from google.cloud import aiplatform
+from google.cloud.aiplatform import gapic as aip
+
+aiplatform.init(project=PROJECT_ID, location=REGION, staging_bucket=BUCKET_NAME)
+```
+
+```
+TRAIN_GPU, TRAIN_NGPU = (None, None)
+DEPLOY_GPU, DEPLOY_NGPU = (None, None)
+```
+
+```
+TRAIN_VERSION = "tf-cpu.2-8"
+DEPLOY_VERSION = "tf2-cpu.2-8"
+
+TRAIN_IMAGE = "us-docker.pkg.dev/vertex-ai/training/{}:latest".format(TRAIN_VERSION)
+DEPLOY_IMAGE = "us-docker.pkg.dev/vertex-ai/prediction/{}:latest".format(DEPLOY_VERSION)
+
+print("Training:", TRAIN_IMAGE, TRAIN_GPU, TRAIN_NGPU)
+print("Deployment:", DEPLOY_IMAGE, DEPLOY_GPU, DEPLOY_NGPU)
+```
+
+```
+MACHINE_TYPE = "n1-standard"
+
+VCPU = "4"
+TRAIN_COMPUTE = MACHINE_TYPE + "-" + VCPU
+print("Train machine type", TRAIN_COMPUTE)
+
+MACHINE_TYPE = "n1-standard"
+
+VCPU = "4"
+DEPLOY_COMPUTE = MACHINE_TYPE + "-" + VCPU
+print("Deploy machine type", DEPLOY_COMPUTE)
+```
+
+### Create a training script
+- training script
+```
+%%writefile task.py
+# Training kmnist using CNN
+
+import tensorflow_datasets as tfds
+import tensorflow as tf
+from tensorflow.python.client import device_lib
+import argparse
+import os
+import sys
+tfds.disable_progress_bar()
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--epochs', dest='epochs',
+                    default=10, type=int,
+                    help='Number of epochs.')
+
+args = parser.parse_args()
+
+print('Python Version = {}'.format(sys.version))
+print('TensorFlow Version = {}'.format(tf.__version__))
+print('TF_CONFIG = {}'.format(os.environ.get('TF_CONFIG', 'Not found')))
+print('DEVICES', device_lib.list_local_devices())
+
+# Define batch size
+BATCH_SIZE = 32
+
+# Load the dataset
+datasets, info = tfds.load('kmnist', with_info=True, as_supervised=True)
+
+# Normalize and batch process the dataset
+ds_train = datasets['train'].map(lambda x, y: (tf.cast(x, tf.float32)/255.0, y)).batch(BATCH_SIZE)
+
+
+# Build the Convolutional Neural Network
+model = tf.keras.models.Sequential([                               
+      tf.keras.layers.Conv2D(16, (3,3), activation=tf.nn.relu, input_shape=(28, 28, 1), padding = "same"),
+      tf.keras.layers.MaxPooling2D(2,2),
+      tf.keras.layers.Conv2D(16, (3,3), activation=tf.nn.relu, padding = "same"),
+      tf.keras.layers.MaxPooling2D(2,2),
+      tf.keras.layers.Flatten(),
+      tf.keras.layers.Dense(128, activation=tf.nn.relu),
+      # TODO: Write the last layer.
+      # Hint: KMNIST has 10 output classes.
+      tf.keras.layers.Dense(10, activation=tf.nn.softmax)
+      
+    ])
+
+model.compile(optimizer = tf.keras.optimizers.Adam(),
+      loss = tf.keras.losses.SparseCategoricalCrossentropy(),
+      metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
+
+
+
+# Train and save the model
+
+MODEL_DIR = os.getenv("AIP_MODEL_DIR")
+
+model.fit(ds_train, epochs=args.epochs)
+
+# TODO: Save your CNN classifier. 
+# Hint: Save it to MODEL_DIR.
+model.save(MODEL_DIR)
+```
+- define the command args for training script
+```
+JOB_NAME = "custom_job_" + TIMESTAMP
+MODEL_DIR = "{}/{}".format(BUCKET_NAME, JOB_NAME)
+
+EPOCHS = 5
+
+CMDARGS = [
+    "--epochs=" + str(EPOCHS),
+]
+```
 
 ### Train the model
+- train the model
+```
+job = aiplatform.CustomTrainingJob(
+    display_name=JOB_NAME,
+    requirements=["tensorflow_datasets==4.6.0"],
+    # TODO: fill in the remaining arguments for the CustomTrainingJob function.
+    script_path="task.py",
+    container_uri=TRAIN_IMAGE,
+    model_serving_container_image_uri=DEPLOY_IMAGE,
+)
 
+MODEL_DISPLAY_NAME = "kmnist-" + TIMESTAMP
+
+# Start the training
+model = job.run(
+    model_display_name=MODEL_DISPLAY_NAME,
+    replica_count=1,
+    accelerator_count=0,
+    # TODO: fill in the remaining arguments to run the custom training job function.
+    args=CMDARGS,
+    machine_type=TRAIN_COMPUTE,
+)
+```
 
 ### Deploy the model to a Vertex Online Prediction Endpoint
 
+```
+DEPLOYED_NAME = "kmnist_deployed-" + TIMESTAMP
+
+TRAFFIC_SPLIT = {"0": 100}
+
+MIN_NODES = 1
+MAX_NODES = 1
+
+endpoint = model.deploy(
+        deployed_model_display_name=DEPLOYED_NAME,
+        accelerator_type=None,
+        accelerator_count=0,
+        # TODO: fill in the remaining arguments to deploy the model to an endpoint.
+        traffic_split=TRAFFIC_SPLIT,
+        machine_type=DEPLOY_COMPUTE,
+        min_replica_count=MIN_NODES,
+        max_replica_count=MAX_NODES,
+    )
+```
 
 ### Query deployed model on Vertex Online Prediction Endpoint
 
+```
+import tensorflow_datasets as tfds
+import numpy as np
+
+tfds.disable_progress_bar()
+```
+
+```
+datasets, info = tfds.load('kmnist', batch_size=-1, with_info=True, as_supervised=True)
+
+test_dataset = datasets['test']
+```
+
+```
+x_test, y_test = tfds.as_numpy(test_dataset)
+
+# Normalize (rescale) the pixel data by dividing each pixel by 255. 
+x_test = x_test.astype('float32') / 255.
+x_test.shape, y_test.shape
+```
+
+```
+#@title Pick the number of test images
+NUM_TEST_IMAGES = 20 #@param {type:"slider", min:1, max:20, step:1}
+x_test, y_test = x_test[:NUM_TEST_IMAGES], y_test[:NUM_TEST_IMAGES]
+```
+- send the prediction request
+```
+# Import and configure logging
+from google.cloud import logging
+logging_client = logging.Client()
+logger = logging_client.logger('challenge-notebook')
+```
+
+```
+# TODO: use your Endpoint to return prediction for your x_test.
+
+predictions = endpoint.predict(instances=x_test.tolist())
+```
+
+```
+y_predicted = np.argmax(predictions.predictions, axis=1)
+
+correct = sum(y_predicted == np.array(y_test.tolist()))
+total = len(y_predicted)
+
+logger.log_text(str(correct/total))
+
+print(
+    f"Correct predictions = {correct}, Total predictions = {total}, Accuracy = {correct/total}"
+)
+```
