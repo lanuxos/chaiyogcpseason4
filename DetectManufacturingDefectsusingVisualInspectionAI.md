@@ -224,6 +224,53 @@ python3 ./prediction_script.py --input_image_file=./IMG_0769.png  --port=8602 --
 
 python3 ./prediction_script.py --input_image_file=./IMG_0769.png  --port=8602 --num_of_requests=10 --output_result_file=non_def_latency_result.json
 
-## Detect Manufacturing Defects using Visual Inspection AI: Challenge Lab []
- 
+## Detect Manufacturing Defects using Visual Inspection AI: Challenge Lab [GSP366]
+Challenge scenario
+You are part of an international mobile manufacturing organization and tasked with inspecting defects on the surface of the mobile phones that are out from the assembly line. Your manager has asked you to help develop a system that will be used to analyze images taken on the production like to identify defects such as scratches, dents, deformations, etc. using a pre-prepared Google Visual Inspection Cosmetic Inspection model. The Visual Inspection model and solution artifact have been prepared by another member of your team and reside in shared resource project that you have access to.
+
+Your challenge is to deploy the solution artifact and test that it can successfully identify both mobile phones that have cosmetic defects (defective mobile phones) and mobile phones that do not have cosmetic defects (non-defective mobile phones).
+### Deploy the exported Cosmetic Inspection anomaly detection solution artifact
+
+gcloud compute ssh lab-vm --zone us-east1-d
+
+export DOCKER_TAG=gcr.io/ql-shared-resources-test/defect_solution@sha256:776fd8c65304ac017f5b9a986a1b8189695b7abbff6aa0e4ef693c46c7122f4c
+
+export VISERVING_CPU_DOCKER_WITH_MODEL=${DOCKER_TAG}
+export HTTP_PORT=8602
+export LOCAL_METRIC_PORT=8603
+
+docker pull ${VISERVING_CPU_DOCKER_WITH_MODEL}
+
+docker run -v /secrets:/secrets --rm -d --name "mobile_inspection" \
+--network="host" \
+-p ${HTTP_PORT}:8602 \
+-p ${LOCAL_METRIC_PORT}:8603 \
+-t ${VISERVING_CPU_DOCKER_WITH_MODEL} \
+--metric_project_id="${PROJECT_ID}" \
+--use_default_credentials=false \
+--service_account_credentials_json=/secrets/assembly-usage-reporter.json
+
+docker container ls
+
+### Prepare resources to serve the exported assembly inspection solution artifact
+
+gsutil cp gs://cloud-training/gsp895/prediction_script.py .
+
+gsutil mb gs://qwiklabs-gcp-01-61d326c8074a
+gsutil -m cp gs://cloud-training/gsp897/cosmetic-test-data/*.png \
+gs://qwiklabs-gcp-01-61d326c8074a/cosmetic-test-data/
+
+### Identify a defective product image
+
+gsutil cp gs://qwiklabs-gcp-01-61d326c8074a/cosmetic-test-data/IMG_07703.png .
+
+python3 ./prediction_script.py --input_image_file=./IMG_07703.png  --port=8602 --output_result_file=defective_product.json
+
+python3 ./prediction_script.py --input_image_file=./IMG_07703.png  --port=8602 --num_of_requests=10 --output_result_file=defective_product.json
+
+### Identify a non-defective product 
+
+gsutil cp gs://qwiklabs-gcp-01-61d326c8074a/cosmetic-test-data/IMG_0769.png .
+
+python3 ./prediction_script.py --input_image_file=./IMG_0769.png  --port=8602 --output_result_file=non_defective_product_result.json
 
