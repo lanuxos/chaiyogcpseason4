@@ -126,8 +126,55 @@ python3 ./prediction_script.py --input_image_file=./image_439_cx31_cy-35_r-4.png
 
 python3 ./prediction_script.py --input_image_file=./image_275_cx98_cy16_r-5.png  --port=8602 --num_of_requests=10 --output_result_file=non_def_latency_result.json
 
-## Create a Cosmetic Anomaly Detection Model using Visual Inspection AI []
- 
+## Create a Cosmetic Anomaly Detection Model using Visual Inspection AI [GSP897]
+### Create a dataset
+Visual Inspection AI
+Enable Visual Inspection AI API
+
+Create a Dataset
+Create Dataset
+cosmetic
+Cosmetic Inspection
+Polygon
+US Central1
+Create
+
+### Import training images into the dataset
+
+export PROJECT_ID=$(gcloud config get-value core/project)
+gsutil mb gs://${PROJECT_ID}
+gsutil -m cp gs://cloud-training/gsp897/cosmetic-test-data/*.png \
+gs://${PROJECT_ID}/cosmetic-test-data/
+
+gsutil ls gs://${PROJECT_ID}/cosmetic-test-data/*.png > /tmp/demo_cosmetic_images.csv
+gsutil cp /tmp/demo_cosmetic_images.csv gs://${PROJECT_ID}/demo_cosmetic_images.csv
+
+Import
+Select an import method
+Select an import file from Cloud Storage
+Import File Path
+Browse
+demo_cosmetic_images.csv
+Select
+Continue
+
+### Provide annotation for defect instances in training images
+Defects
+Add New Defect Type
+Defect type:    dent
+Done
+Create
+Add New Defect Type
+Defect type:    scratch
+Done
+Create
+
+Add Simple Polygon
+Save
+
+No defect
+Confirm
+No defect
 
 
 ## Deploy and Test a Visual Inspection AI Cosmetic Anomaly Detection Solution []
