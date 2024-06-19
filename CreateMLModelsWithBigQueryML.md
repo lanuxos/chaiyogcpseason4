@@ -1403,5 +1403,26 @@ WHERE p.prob >= .5
 AND school_ncaa = 'Duke'
 ORDER BY seed, opponent_seed
 ```
-## Create ML Models with BigQuery ML: Challenge Lab []
+## Create ML Models with BigQuery ML: Challenge Lab [GSP341]
+
+Challenge scenario
+You have started a new role as a junior member of the Data Science department Jooli Inc. Your team is working on multiple projects with a number of machine learning initiatives. You are expected to help with the development and assessment of data sets and machine learning models to help provide insights based on real work data sets.
+
+You are expected to have the skills and knowledge for these tasks, so don't expect step-by-step guides to be provided.
+
+The following tasks in this lab will check your knowledge related to BigQuery and machine learning.
+
+[Dataset](https://support.google.com/analytics/answer/7586738?hl=en&ref_topic=3416089#zippy=%2Cin-this-article)
+
+### Task 1
+Create a new dataset
+
+### Task 2
+Create and evaluate a model
+
+### Task 3
+Use the model to predict purchases per country
+
+### Task 4
+Use the model to predict purchases per user
 
